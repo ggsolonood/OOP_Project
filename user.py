@@ -78,7 +78,7 @@ class User:
         self.__ticket_list = []
         self.__booking_list = []
         self.__total_spending = 0
-        self.__type_user = MemberTier.SILVER
+        self.__type_user = MemberTier.GUEST
 
     @property
     def id(self):
