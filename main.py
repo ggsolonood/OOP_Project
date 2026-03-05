@@ -192,6 +192,32 @@ class ExchangeCoupon(coupon):
     def __init__(self, id, name,goods):
         super().__init__(id, name)
         self.__list_goods = goods
+class OrderStatus(Enum):
+    COMPLETED = "Conpleted"
+    CANCELLED = "Cancelled"
+    REFUNDED = "Refunded"
+class Member(Enum):
+    SIVER = "Siver"
+    GOLD = "Gold"
+    PATINUM = "Patinum"
+    GUEST = "Guest"
+class BookingStatus(Enum):
+    PENDING = "Pending"
+    CONFIRMED = "Confirmed"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
+class Goods(Enum):
+    Popcorn = "Popcorn"
+    DRINKS = "Drinks"
+    SNACK = "Snack"
+class SeatStatus(Enum):
+    NORMALSEAT = "Normalseat"
+    SOFA = "Sofa"
+    HONEYMOONBED = "Honeymoonbed"
+class Theater(Enum):
+    STANDARD = "Standard"
+    IMAX = "IMAX"
+    _4DX = "4DX"
 #test script
 # --------------------------------------------
 
