@@ -1,200 +1,255 @@
-#for import
-from abc import ABC,abstractmethod
+from fastapi import FastAPI
+from abc import ABC
 from enum import Enum
 
-#for class diagram
-class JamorCineplex:
-    def __init__(self):
-        self.__cineplex_list = []
-        self.__user_list = []
-        self.__booking_list = []
-        self.__coupon_list = []
-    #return class cineplex
-    def search_cineplex_by_id(self,cineplex_id):
-        for i in self.__cineplex_list:
-            if i.id == cineplex_id:
-                return i
-        return False
-    #return class user
-    def search_user_by_id(self,user_id):
-        for i in self.__user_list:
-            if i.id == user_id:
-                return i
-        return False
-class Cineplex:
-    def __init__(self,cineplex_id,name):
-        self.__cineplex_id = cineplex_id
+app = FastAPI()
+
+class OrderStatus(Enum):
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
+    REFUNDED = "Refunded"
+
+class Account:
+    def __init__(self, name, account_id, balance):
         self.__name = name
-        self.__movies_list = []
-        self.__theaters_list = []
-        self.__showtime_list = []
-        self.__goods_list = []
-    @property
-    def id(self):
-        return self.__cineplex_id
-    #return class movie
-    def search_movie_by_id(self,movie_id):
-        for i in self.__movies_list:
-            if i.id == movie_id:
-                return i
-        return False
-    #return class theater
-    def search_theater_by_id(self,theater_id):
-        for i in self.__theaters_list:
-            if i.id == theater_id:
-                return i
-        return False
-    #return class showtime
-    def search_showtime_by_id(self,showtime_id):
-        for i in self.search_showtime_by_id:
-            if i.id == showtime_id:
-                return i
-        return False
-    #return class goods
-    def search_goods_by_id(self,goods_id):
-        for i in self.__goods_list:
-            if i.id == goods_id:
-                return i
-        return False
-class Showtime:
-    def __init__(self,showtime,movie,theater,status,subtitle,start_time,end_time,base_price):
-        self.__id = showtime
-        self.__movie = movie
-        self.__theater = theater
-        self.__status = status
-        self.__subtitle = subtitle
-        self.__start_time = start_time
-        self.__end_time = end_time
-        self.__base_price = base_price
-        self.__showtime_seat = []
-    @property
-    def id(self):
+        self.__id = account_id
+        self.__balance = balance
+
+    def get_id(self):
         return self.__id
-    def calculate_price(self):
-        pass
-    def get_info(self):
-        return print("Movie Name : ",self.__movie,"At Theater :",self.__theater,"Start at :",self.__start_time,"End at :",self.__end_time)
-    def is_seat_available(self,seat):
-        for i in self.__showtime_seat:
-            if i == seat:
-                return False
+
+    def increase_balance(self, amount):
+        self.__balance += amount  
         return True
-class Movie:
-    def __init__(self,id,name,duration,genre,aga_rating):
-        self.__movie_id = id
-        self.__movie_name = name
-        self.__duration = duration
-        self.__genre = genre
-        self.__age_rating = aga_rating
-    @property
-    def id(self):
-        return self.__movie_id
-class Theater:
-    def __init__(self,theater_id,type_theater):
-        self.__theater_id = theater_id
-        self.__seats_list = []
-        self.__type_theater = type_theater
-    @property
-    def id(self):
-        return self.__theater_id
-    def search_seats_list_avalible(self,seats):
-        for i in self.__seats_list:
-            for b in seats:
-                if b == i:
-                    return False
-        return True
-class Seat:
-    def __init__(self,seat_id,seat_number,type_seat):
-        self.__seat_id = seat_id
-        self.__seat_number = seat_number
-        self.__type_seat = type_seat
-    @property
-    def id(self):
-        return self.__seat_id
-class ShowtimeSeat(Seat):
-    def __init__(self,seat_id,seat_number,type_seat,status):
-        super().__init__(seat_id,seat_number,type_seat)
-        self.__status = status
-    @property
-    def status(self):
-        return self.__status
-class Goods:
-    def __init__(self,values,name,price,type_goods):
-        self.__values = values
-        self.__name = name
-        self.__price = price
-        self.__type_goods = type_goods
-    
-class Order:
-    def __init__(self,goods,user_id):
-        self.__goods = goods
-        self.__user_id = user_id
-        self.__totle_cost = None
-class Booking:
-    def __init__(self,booking_id,user,showtime,timestamp,status):
-        self.__booking_id = booking_id
-        self.__user = user
-        self.__showtime = showtime
-        self.__ticket = None
-        self.__timestamp = timestamp
-        self.__showtime_seat = []
-        self.__status = status
-    @property
-    def id(self):
-        return self.__booking_id
-class Ticket:
-    def __init__(self,booking,cineplex,user,movie,theater,showtime,seat_list):
-        self.__booking = booking
-        self.__cineplex = cineplex
-        self.__user = user
-        self.__movie = movie
-        self.__theater = theater
-        self.__showtime = showtime
-        self.__seat_list = seat_list
+
 class Bank:
-    def __init__(self,name):
+    def __init__(self, name):
         self.__name = name
         self.__account_list = []
-class Account:
-    def __init__(self,name,balance,id):
-        self.__id = id
+    
+    def create_account(self, name, account_id, balance):
+        account = Account(name, account_id, balance)
+        self.__account_list.append(account)
+        return account
+
+    def check_account(self, account_id):
+        for acc in self.__account_list:
+            if acc.get_id() == account_id:
+                return acc
+        return None
+
+    def refund(self, account_id, amount):
+        account = self.check_account(account_id)
+        if account is not None:
+            return account.increase_balance(amount) 
+        return False
+
+
+
+class Order:
+    def __init__(self, order_id, goods_name, values, account_id, total_paid, coupon_id=None, status=OrderStatus.COMPLETED):
+        self.__order_id = order_id
+        self.__status = status 
+        self.__goods_name = goods_name
+        self.__values = values
+        self.__account_id = account_id 
+        self.__total_paid = total_paid
+        self.__coupon_id = coupon_id
+  
+    def update_status(self, status: OrderStatus):
+        self.__status = status 
+        return "success"
+    
+    def get_status(self):
+        return self.__status.value if isinstance(self.__status, OrderStatus) else self.__status
+
+    def get_order_id(self):
+        return self.__order_id
+
+    def get_payment_details(self):
+        return self.__account_id, self.__total_paid
+
+    def get_items(self):
+        return self.__goods_name, self.__values
+
+    def get_used_coupon(self):
+        return self.__coupon_id
+
+
+class Goods(ABC):
+    def __init__(self, name, values: int):
+        self._name = name
+        self._values = values
+
+    def get_name(self):
+        return self._name
+
+    def restore_stock(self, amount):
+        self._values += amount 
+        return "success"
+
+class Popcorn(Goods):
+    def __init__(self, name, values: int, flavor):
+        super().__init__(name, values)
+        self._flavor = flavor
+
+
+class Cineplex:
+    def __init__(self, name):
         self.__name = name
-        self.__balance = balance
-    @property
-    def id(self):
-        return self.__id
+        self.__stock = []
+
+    def get_cineplex_name(self):
+        return self.__name
+
+    def search_goods_stock(self, goods_name):
+        for item in self.__stock:
+            if item.get_name() == goods_name:
+                return item
+        return None
+
+class Coupon:
+    def __init__(self, coupon_id):
+        self._coupon_id = coupon_id
+        self._is_used = True 
+
+    def get_coupon_id(self):
+        return self._coupon_id
+
+    def update_status(self, status):
+        if status == "Available":
+            self._is_used = False
+        return "success"
+
+class DiscountCoupon(Coupon):
+    pass
+
 class User:
-    def __init__(self,id,name,email,phone_number,birthday,password):
-        self.__id = id
-        self.__name = name
-        self.__email = email
-        self.__phone_number = phone_number
-        self.__birthday = birthday
-        self.__password = password
-        self.__point = 0
+    def __init__(self, member_id):
+        self._member_id = member_id
+
+    def get_member_id(self):
+        return self._member_id
+    
+class Member(User):
+    pass
+
+class JamorPlinicex:
+    def __init__(self, bank: Bank):
+        self.__bank = bank 
+        self.__member_list = []
+        self.__order_list = []   
+        self.__cineplex_list = []
         self.__coupon_list = []
-        self.__ticket_list = []
-        self.__booking_list = []
-        self.__totle_spending = 0
-        self.__type_user = "guest"
-    @property
-    def id(self):
-        return self.__id
-class coupon:
-    def __init__(self,id,name):
-        self.__coupon_id = id
-        self.__name = name
-class DiscountCoupon(coupon):
-    def __init__(self, id, name, discount):
-        super().__init__(id, name)
-        self.__discount = discount
-class ExchangeCoupon(coupon):
-    def __init__(self, id, name,goods):
-        super().__init__(id, name)
-        self.__list_goods = goods
-#test script
-# --------------------------------------------
 
-#----------------------------------------------
+    def find_member(self, user_id):
+        for member in self.__member_list:
+            if member.get_member_id() == user_id:
+                return member
+        return None
+    
+    def find_order(self, order_id):
+        for order in self.__order_list:
+            if order.get_order_id() == order_id:
+                return order
+        return None
 
-#api
+    def find_cineplex(self, cineplex_name):
+        for c in self.__cineplex_list:
+            if c.get_cineplex_name() == cineplex_name:
+                return c
+        return None
+
+    def cancel_order(self, order_id, user_id, cineplex_name):
+        member = self.find_member(user_id)
+        if not member:
+            return "Member not found"
+
+        order = self.find_order(order_id)
+        if not order:
+            return "Order not found"
+
+        current_status = order.get_status()
+
+        if current_status == OrderStatus.CANCELLED.value:
+            return "Order is already cancelled"
+            
+        if current_status == OrderStatus.REFUNDED.value:
+            return "Order has already been refunded"
+
+     
+        if current_status == OrderStatus.COMPLETED.value:
+            account_id, total_paid = order.get_payment_details()
+            
+           
+            refund_success = self.__bank.refund(account_id, total_paid)
+            
+            if refund_success:
+                item_text, coupon_text = self.restore_order_resources(order, cineplex_name)
+                order.update_status(OrderStatus.CANCELLED)
+                
+               
+                return f"Cancel success, Refund {total_paid} THB to account {account_id}. Restored: {item_text}, Coupon: {coupon_text}."
+            else:
+                return "Refund failed"
+
+  
+    def restore_order_resources(self, order, cineplex_name):
+        goods_name, values = order.get_items()
+        cineplex = self.find_cineplex(cineplex_name)
+        
+        restored_item_text = f"{values} x {goods_name}"
+        restored_coupon_text = "None"
+
+        if cineplex:
+            target_good = cineplex.search_goods_stock(goods_name)
+            if target_good:
+                target_good.restore_stock(values)
+        
+        coupon_id = order.get_used_coupon()
+        if coupon_id:
+            for coupon in self.__coupon_list:
+                if coupon.get_coupon_id() == coupon_id:
+                    coupon.update_status("Available")
+                    restored_coupon_text = str(coupon_id)
+                    break
+        
+        return restored_item_text, restored_coupon_text
+
+# ==========================================
+# Setup Mock Data & System
+# ==========================================
+main_bank = Bank("KBank")
+main_account = main_bank.create_account("John Doe", "ACC-001", balance=1000) 
+
+system = JamorPlinicex(main_bank)
+
+system._JamorPlinicex__member_list.append(Member("USER-001"))
+
+cineplex = Cineplex("Cineplex-A")
+popcorn = Popcorn("Popcorn Cheese", values=98, flavor="Cheese") 
+cineplex._Cineplex__stock.append(popcorn)
+system._JamorPlinicex__cineplex_list.append(cineplex)
+
+coupon = DiscountCoupon("DISC-50")
+system._JamorPlinicex__coupon_list.append(coupon)
+
+mock_order = Order("ORD-999", "Popcorn Cheese", 2, "ACC-001", 150, "DISC-50")
+system._JamorPlinicex__order_list.append(mock_order)
+
+# ==========================================
+# FastAPI Endpoint 
+# ==========================================
+
+@app.post("/cancel-order")
+def cancel_order_api(
+    order_id: str,
+    user_id: str,
+    cineplex_name: str
+):
+    result = system.cancel_order(
+        order_id=order_id, 
+        user_id=user_id,
+        cineplex_name=cineplex_name
+    )
+    return result
