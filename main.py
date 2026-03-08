@@ -1,10 +1,8 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from typing import List
 from abc import ABC, abstractmethod
 from enum import Enum
-import uvicorn
 from datetime import datetime
+from fastmcp import FastMCP
 
 # --- ENUMS (ปรับชื่อไม่ให้ซ้ำกับ Class) ---
 class OrderStatus(Enum):
@@ -140,7 +138,6 @@ class JamorCineplex:
             return booking, "Change booking (Pending) successful"
 
         return None, "Invalid booking status"
-
 
 class Cineplex:
     def __init__(self, cineplex_id, name):
@@ -322,7 +319,6 @@ class User:
                 return b
         return None
 
-
 # --------------------------------------------
 # System Initialization & Mock Data
 # --------------------------------------------
@@ -344,7 +340,7 @@ cineplex.add_theater(theater1)
 movie1 = Movie("M01", "The Matrix", 120, "Sci-Fi", "13+")
 showtime1 = Showtime("ST01", movie1, theater1, "10:00", "12:00", 200)
 
-# จำลองการสร้าง Booking แรกเริ่ม (Pending)
+# จำลองการสร้าง Booking แรกเริ่ม (Pending) - จอง A1, A2
 initial_seats = [theater1.search_seat_by_no("A1"), theater1.search_seat_by_no("A2")]
 booking1 = Booking("BK01", user1, showtime1, datetime.now(), BookingStatus.PENDING, 400.0)
 booking1.showtime_seat = showtime1.add_seats(initial_seats, BookingStatus.PENDING)
@@ -352,41 +348,51 @@ user1.add_booking(booking1)
 
 
 # --------------------------------------------
-# FastAPI Setup
+# FastMCP Tools Setup (แทนที่ FastAPI)
 # --------------------------------------------
-app = FastAPI()
+mcp = FastMCP("JamorCineplex System")
 
-class ChangeBookingRequest(BaseModel):
-    new_seat_nos: List[str]
-
-@app.patch("/users/{user_id}/bookings/{booking_id}/change-seats")
-async def api_change_booking(user_id: str, booking_id: str, req: ChangeBookingRequest):
-    booking, msg = system.process_change_booking(user_id, booking_id, req.new_seat_nos)
+@mcp.tool()
+def change_booking_seats(user_id: str, booking_id: str, new_seat_nos: List[str]) -> str:
+    """
+    ใช้สำหรับเปลี่ยนที่นั่ง (Change Seats) ให้กับ Booking เดิมที่มีอยู่แล้ว
+    เช่น ถ้าย้ายจากที่นั่งเดิม ไปเป็น B1 และ B2 ให้ส่ง new_seat_nos=["B1", "B2"]
+    """
+    booking, msg = system.process_change_booking(user_id, booking_id, new_seat_nos)
     
     if not booking:
-        raise HTTPException(status_code=400, detail=msg)
+        return f"Failed to change booking: {msg}"
         
-    return {
-        "status": "success",
-        "message": msg,
-        "booking_id": booking.id,
-        "booking_status": booking.status.value,
-        "new_seats": [s.seat_number for s in booking.showtime_seat],
-        "new_total_price": booking.total_price
-    }
+    return (f"Success: {msg}\n"
+            f"Booking ID: {booking.id}\n"
+            f"Status: {booking.status.value}\n"
+            f"New Seats: {[s.seat_number for s in booking.showtime_seat]}\n"
+            f"Total Price: {booking.total_price} THB")
 
-@app.get("/users/{user_id}/bookings")
-async def get_user_bookings(user_id: str):
+@mcp.tool()
+def get_user_bookings(user_id: str) -> str:
+    """
+    ดึงข้อมูลประวัติการจองภาพยนตร์ (Bookings) ทั้งหมดของ User ตาม user_id
+    """
     user = system.search_user_by_id(user_id)
-    if not user: raise HTTPException(status_code=404, detail="User not found")
+    if not user: 
+        return "Error: User not found in the system."
     
-    return [{
-        "booking_id": b.id,
-        "movie": b.showtime.movie.name,
-        "status": b.status.value,
-        "seats": [s.seat_number for s in b.showtime_seat],
-        "price": b.total_price
-    } for b in user.booking_list]
+    if not user.booking_list:
+        return f"User {user_id} currently has no bookings."
+        
+    bookings_info = []
+    for b in user.booking_list:
+        info = {
+            "booking_id": b.id,
+            "movie": b.showtime.movie.name,
+            "status": b.status.value,
+            "seats": [s.seat_number for s in b.showtime_seat],
+            "price": b.total_price
+        }
+        bookings_info.append(str(info))
+        
+    return "\n".join(bookings_info)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    mcp.run()
