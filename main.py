@@ -1,59 +1,8 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from typing import List, Optional
-from abc import ABC, abstractmethod
-from enum import Enum
-import uvicorn
-
-app = FastAPI()
+from fastmcp import FastMCP
 
 # ==========================================
-# 1. Pydantic Models (สำหรับ API รับข้อมูล)
-# ==========================================
-class CineplexCreate(BaseModel):
-    cineplex_id: int
-    name: str
-
-class MovieCreate(BaseModel):
-    cineplex_id: int
-    movie_id: int
-    name: str
-    duration: int
-    genre: str
-    age_rating: str
-
-class TheaterCreate(BaseModel):
-    cineplex_id: int
-    theater_id: str
-    type_theater: str
-
-class SeatCreate(BaseModel):
-    cineplex_id: int
-    theater_id: str
-    seat_id: str
-    seat_number: str
-    type_seat: str
-
-class ShowtimeCreate(BaseModel):
-    cineplex_id: int
-    showtime_id: str
-    movie_id: int
-    theater_id: str
-    status: str
-    subtitle: str
-    start_time: str
-    end_time: str
-    base_price: float
-
-class CouponCreate(BaseModel):
-    coupon_type: str  # "discount" หรือ "exchange"
-    coupon_id: str
-    name: str
-    discount: Optional[float] = 0.0
-    goods_list: Optional[List[str]] = []
-
-# ==========================================
-# 2. Classes Structure
+# 1. Classes Structure (โครงสร้างคลาสหลัก เหมือนเดิม 100%)
 # ==========================================
 class Cineplex:
     def __init__(self, cineplex_id, name):
@@ -148,7 +97,7 @@ class ExchangeCoupon(coupon):
         self.__list_goods = goods
 
 # ==========================================
-# 3. System (Controller)
+# 2. System (Controller) (ลอจิกเดิมของคุณ Ken ครับ)
 # ==========================================
 class JamorCineplex:
     def __init__(self):
@@ -167,7 +116,6 @@ class JamorCineplex:
             if i.id == user_id: return i
         return False
 
-    # --- Process Methods (Business Logic) ---
     def process_create_cineplex(self, cineplex_id, name):
         if self.search_cineplex_by_id(cineplex_id):
             return False, "Cineplex ID already exists."
@@ -228,54 +176,48 @@ class JamorCineplex:
         return True, "Coupon created successfully."
 
 # ==========================================
-# 4. API Routes (Clean Layer)
+# 3. MCP Tools (ส่วนที่แปลงจาก API Routes)
 # ==========================================
+# สร้าง MCP Server แทน FastAPI
+mcp = FastMCP("JamorCineplex")
 system = JamorCineplex()
 
-@app.post("/create_cineplex")
-async def create_cineplex(req: CineplexCreate):
-    success, msg = system.process_create_cineplex(req.cineplex_id, req.name)
-    if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
+@mcp.tool()
+def create_cineplex(cineplex_id: int, name: str) -> str:
+    """สร้างสาขาโรงภาพยนตร์ใหม่ (Cineplex)"""
+    success, msg = system.process_create_cineplex(cineplex_id, name)
+    return f"Success: {msg}" if success else f"Error: {msg}"
 
-@app.post("/create_movie")
-async def create_movie(req: MovieCreate):
-    success, msg = system.process_create_movie(
-        req.cineplex_id, req.movie_id, req.name, req.duration, req.genre, req.age_rating
-    )
-    if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
+@mcp.tool()
+def create_movie(cineplex_id: int, movie_id: int, name: str, duration: int, genre: str, age_rating: str) -> str:
+    """เพิ่มภาพยนตร์เรื่องใหม่เข้าไปในระบบของสาขา"""
+    success, msg = system.process_create_movie(cineplex_id, movie_id, name, duration, genre, age_rating)
+    return f"Success: {msg}" if success else f"Error: {msg}"
 
-@app.post("/create_theater")
-async def create_theater(req: TheaterCreate):
-    success, msg = system.process_create_theater(req.cineplex_id, req.theater_id, req.type_theater)
-    if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
+@mcp.tool()
+def create_theater(cineplex_id: int, theater_id: str, type_theater: str) -> str:
+    """สร้างโรงฉายภาพยนตร์ย่อยภายในสาขา"""
+    success, msg = system.process_create_theater(cineplex_id, theater_id, type_theater)
+    return f"Success: {msg}" if success else f"Error: {msg}"
 
-@app.post("/create_seat")
-async def create_seat(req: SeatCreate):
-    success, msg = system.process_create_seat(
-        req.cineplex_id, req.theater_id, req.seat_id, req.seat_number, req.type_seat
-    )
-    if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
+@mcp.tool()
+def create_seat(cineplex_id: int, theater_id: str, seat_id: str, seat_number: str, type_seat: str) -> str:
+    """เพิ่มที่นั่งในโรงฉายภาพยนตร์"""
+    success, msg = system.process_create_seat(cineplex_id, theater_id, seat_id, seat_number, type_seat)
+    return f"Success: {msg}" if success else f"Error: {msg}"
 
-@app.post("/create_showtime")
-async def create_showtime(req: ShowtimeCreate):
-    success, msg = system.process_create_showtime(
-        req.cineplex_id, req.showtime_id, req.movie_id, req.theater_id, 
-        req.status, req.subtitle, req.start_time, req.end_time, req.base_price
-    )
-    if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
+@mcp.tool()
+def create_showtime(cineplex_id: int, showtime_id: str, movie_id: int, theater_id: str, status: str, subtitle: str, start_time: str, end_time: str, base_price: float) -> str:
+    """สร้างรอบฉายภาพยนตร์"""
+    success, msg = system.process_create_showtime(cineplex_id, showtime_id, movie_id, theater_id, status, subtitle, start_time, end_time, base_price)
+    return f"Success: {msg}" if success else f"Error: {msg}"
 
-@app.post("/create_coupon")
-async def create_coupon(req: CouponCreate):
-    success, msg = system.process_create_coupon(
-        req.coupon_type, req.coupon_id, req.name, req.discount, req.goods_list
-    )
-    if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
+@mcp.tool()
+def create_coupon(coupon_type: str, coupon_id: str, name: str, discount: float = 0.0, goods_list: List[str] = []) -> str:
+    """สร้างคูปองส่วนลด (discount) หรือ คูปองแลกของ (exchange)"""
+    success, msg = system.process_create_coupon(coupon_type, coupon_id, name, discount, goods_list)
+    return f"Success: {msg}" if success else f"Error: {msg}"
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # รันเซิร์ฟเวอร์ MCP (ตั้งค่าให้คุยผ่าน Stdio อัตโนมัติ)
+    mcp.run()
