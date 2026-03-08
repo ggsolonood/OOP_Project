@@ -1,200 +1,544 @@
-#for import
-from abc import ABC,abstractmethod
-from enum import Enum
+import datetime
+from fastapi import FastAPI
+from abc import ABC , abstractmethod
 
-#for class diagram
-class JamorCineplex:
+app = FastAPI()
+
+class JamorPlinicex :
     def __init__(self):
-        self.__cineplex_list = []
-        self.__user_list = []
-        self.__booking_list = []
+        self.__member_list = []
         self.__coupon_list = []
-    #return class cineplex
-    def search_cineplex_by_id(self,cineplex_id):
-        for i in self.__cineplex_list:
-            if i.id == cineplex_id:
+        self.__cineplex_list = []
+        self.__booking_list = []
+    
+    def add_cineplex(self,name) :
+        cineplex = Cineplex(name)
+        self.__cineplex_list.append(cineplex)
+        return cineplex
+
+    def register_member(self,name,birthday,member_id,registered_date,email=None,phone_number=None) :
+        member = SilverMember(name,birthday,member_id,registered_date,email,phone_number)
+        self.__member_list.append(member)
+    
+    def add_discount_coupon(self,coupon_id,name,discount) :
+        discount_coupon = DiscountCoupon(coupon_id,name,discount)
+        self.__coupon_list.append(discount_coupon)  
+
+    def add_exchange_coupon(self,coupon_id,name,goods:list) :
+        exchange_coupon = ExchangeCoupon(coupon_id,name,goods)
+        self.__coupon_list.append(exchange_coupon)
+
+    def find_cineplex(self,cineplex_name) :
+        for i in self.__cineplex_list :
+            if cineplex_name == i.get_cineplex_name() :
                 return i
-        return False
-    #return class user
-    def search_user_by_id(self,user_id):
-        for i in self.__user_list:
-            if i.id == user_id:
+            
+    def calculate_total_price(self,member,booking) :
+        member_discount = member.get_discount()
+        cineplex = self.find_cineplex(booking.get_cineplex_name())
+        showtime = booking.get_showtime()
+        movie_price = showtime.get_price()
+        theater = cineplex.find_theater(booking.get_theater_id())
+        theater_price = theater.get_price()
+        seat = theater.find_seat(booking.get_seat_no())
+        seat_price = seat.get_price()
+        return booking.calculate_total(theater_price,movie_price,seat_price,member_discount)
+
+    def change_seat_status(self,booking,status) :
+        cineplex = self.find_cineplex(booking.get_cineplex_name())
+        theater = cineplex.find_theater(booking.get_theater_id())
+        seat = theater.find_seat(booking.get_seat_no())
+        if status == "buy" :
+            seat.buy()
+        elif status == "release" :
+            seat.release()
+
+    def add_booking(self,booking_id,member_id,cineplex_name,theater_id,seat_no,movie,showtime) :
+        booking = Booking(booking_id,member_id,cineplex_name,theater_id,seat_no,movie,showtime)
+        self.__booking_list.append(booking)
+        for i in self.__member_list :
+            if member_id == i.get_member_id() :
+                i.add_booking(booking)
+        cineplex = self.find_cineplex(cineplex_name)
+        theater = cineplex.find_theater(theater_id)
+        seat = theater.find_seat(seat_no)
+        seat.reserve()
+
+    def confirm_booking(self,booking_id,user_id,account_id) :
+        try :
+            member = self.find_member(user_id)
+        except :
+            return "Member not found"
+        try :
+            booking = self.find_booking(booking_id)
+        except :
+            return "Booking not found"
+        if booking.get_member_id() == user_id :
+            total = self.calculate_total_price(member,booking)
+            payment = PaymentGateway(account_id,total)
+            check = payment.pay()
+            if check == "Account not found" :
+                return check
+            elif check == True :
+                booking.success()
+                self.change_seat_status(booking,"buy")
+                return f"Success, Total Paid : {total}"
+            else :
+                return "Failed"
+        else :
+            return "This booking is not belong to this member."
+
+    def find_member(self,user_id) :
+        for i in self.__member_list :
+            if user_id == i.get_member_id() :
                 return i
-        return False
-class Cineplex:
-    def __init__(self,cineplex_id,name):
-        self.__cineplex_id = cineplex_id
+        raise ValueError("Member not found.")
+    
+    def find_booking(self,booking_id) :
+        for i in self.__booking_list :
+            if booking_id == i.get_booking_id() :
+                return i
+        raise ValueError("Booking not found.")
+
+
+class Cineplex :
+    def __init__(self,name):
         self.__name = name
-        self.__movies_list = []
-        self.__theaters_list = []
-        self.__showtime_list = []
-        self.__goods_list = []
-    @property
-    def id(self):
-        return self.__cineplex_id
-    #return class movie
-    def search_movie_by_id(self,movie_id):
-        for i in self.__movies_list:
-            if i.id == movie_id:
+        self.__movie_list = []
+        self.__theater_list = []
+        self.__stock = []
+
+    def add_standard_theater(self,theater_id,seat:list) :
+        theater = StandardTheater(theater_id,seat)
+        self.__theater_list.append(theater)
+
+    def add_imax_theater(self,theater_id,seat:list) :
+        theater = IMAXTheater(theater_id,seat)
+        self.__theater_list.append(theater)
+
+    def add_4dx_theater(self,theater_id,seat:list) :
+        theater = FourDXTheater(theater_id,seat)
+        self.__theater_list.append(theater)
+
+    def add_movie(self,name,duration,genre,age_rating,showtime:list) :
+        movie = Movie(name,duration,genre,age_rating,showtime)
+        self.__movie_list.append(movie)
+
+    def add_popcorn(self,name, values:int, price,flavor) :
+        popcorn = Popcorn(name, values, price,flavor)
+        self.__stock.append(popcorn)
+
+    def add_drinks(self,name, values:int, price,flavor) :
+        drinks = Drinks(name, values, price,flavor)
+        self.__stock.append(drinks)
+
+    def add_snack(self,name, values:int, price) :
+        snack = Snack(name, values, price)
+        self.__stock.append(snack)
+
+    def check_stock(self) :
+        return self.__stock
+    
+    def get_cineplex_name(self) :
+        return self.__name
+    
+    def find_theater(self,theater_id) :
+        for i in self.__theater_list :
+            if theater_id == i.get_theater_id() :
                 return i
-        return False
-    #return class theater
-    def search_theater_by_id(self,theater_id):
-        for i in self.__theaters_list:
-            if i.id == theater_id:
+
+    def find_movie(self,movie_name) :
+        for i in self.__movie_list :
+            if movie_name == i.get_movie_name() :
                 return i
-        return False
-    #return class showtime
-    def search_showtime_by_id(self,showtime_id):
-        for i in self.search_showtime_by_id:
-            if i.id == showtime_id:
-                return i
-        return False
-    #return class goods
-    def search_goods_by_id(self,goods_id):
-        for i in self.__goods_list:
-            if i.id == goods_id:
-                return i
-        return False
-class Showtime:
-    def __init__(self,showtime,movie,theater,status,subtitle,start_time,end_time,base_price):
-        self.__id = showtime
-        self.__movie = movie
-        self.__theater = theater
-        self.__status = status
-        self.__subtitle = subtitle
-        self.__start_time = start_time
-        self.__end_time = end_time
-        self.__base_price = base_price
-        self.__showtime_seat = []
-    @property
-    def id(self):
-        return self.__id
-    def calculate_price(self):
+
+class Member(ABC) :
+    def __init__(self,name,birthday,member_id,registered_date,email=None,phone_number=None):
+        self._name = name
+        self._member_id = member_id
+        self._birthday = birthday
+        self._registered_date = registered_date
+        self._email = email
+        self._phone_number = phone_number
+        self._coupon_list = []
+        self._ticket_list = []
+        self._booking_list = []
+        self._transaction_list = []
+        self._point = 0
+        self._total_spend = 0
+        self._status = "Active"
+        self._discount = 20
+
+    @abstractmethod
+    def get_discount(self) :
         pass
-    def get_info(self):
-        return print("Movie Name : ",self.__movie,"At Theater :",self.__theater,"Start at :",self.__start_time,"End at :",self.__end_time)
-    def is_seat_available(self,seat):
-        for i in self.__showtime_seat:
-            if i == seat:
-                return False
-        return True
-class Movie:
-    def __init__(self,id,name,duration,genre,aga_rating):
-        self.__movie_id = id
+    
+    def add_booking(self,booking) :
+        self._booking_list.append(booking)
+
+    def get_member_id(self) :
+        return self._member_id
+    
+class SilverMember(Member) :
+    def __init__(self, name, birthday, member_id, registered_date, email=None, phone_number=None):
+        super().__init__(name, birthday, member_id, registered_date, email, phone_number)
+
+    def get_discount(self) :
+        return self._discount
+    
+class GoldMember(Member) :
+    def __init__(self, name, birthday, member_id, registered_date, email=None, phone_number=None):
+        super().__init__(name, birthday, member_id, registered_date, email, phone_number)
+        self._discount = 50
+    
+    def get_discount(self) :
+        return self._discount
+    
+class PlatinumMember(Member) :
+    def __init__(self, name, birthday, member_id, registered_date, email=None, phone_number=None):
+        super().__init__(name, birthday, member_id, registered_date, email, phone_number)
+        self._discount = 100
+
+    def get_discount(self) :
+        return self._discount
+    
+class Coupon(ABC) :
+    def __init__(self,coupon_id,name):
+        self._coupon_id = coupon_id
+        self._name = name
+        self._type = None
+
+    @abstractmethod
+    def get_type(self) :
+        pass
+
+class DiscountCoupon(Coupon) :
+    def __init__(self, coupon_id, name,discount):
+        super().__init__(coupon_id, name)
+        self._discount = discount
+        self._type = "DiscountCoupon"
+
+    def get_discount(self) :
+        return self._discount
+    
+    def get_type(self) :
+        return self._type
+    
+class ExchangeCoupon(Coupon) :
+    def __init__(self, coupon_id, name,goods:list):
+        super().__init__(coupon_id, name)
+        self._good_list = goods
+        self._type = "ExchangeCoupon"
+
+    def get_exchange(self) :
+        return self._good_list
+    
+    def get_type(self) :
+        return self._type
+    
+class Theater(ABC) :
+    def __init__(self,theater_id,seat:list,price) :
+        self._theater_id = theater_id
+        self._seat_list = seat
+        self._price = price
+
+    def get_seat_map(self) :
+        return self._seat_list
+    
+    @abstractmethod
+    def get_price(self) :
+        pass
+    
+    def get_theater_id(self) :
+        return self._theater_id
+    
+    def find_seat(self,seat_no) :
+        for i in self._seat_list :
+            if seat_no == i.get_seat_no() :
+                return i
+
+class StandardTheater(Theater) :
+    def __init__(self, theater_id, seat):
+        super().__init__(theater_id, seat,100)
+    
+    def get_price(self) :
+        return self._price
+
+class IMAXTheater(Theater) :
+    def __init__(self, theater_id, seat):
+        super().__init__(theater_id, seat,150)
+    
+    def get_price(self) :
+        return self._price
+
+class FourDXTheater(Theater) :
+    def __init__(self, theater_id, seat):
+        super().__init__(theater_id, seat,200)
+    
+    def get_price(self) :
+        return self._price
+
+class Seat(ABC) :
+    def __init__(self,seat_no) :
+        self._seat_no = seat_no
+        self._price = 20
+        self._status = "Available"
+
+    @abstractmethod
+    def get_price(self) :
+        pass
+    
+    def reserve(self) :
+        self._status = "Reserved"
+
+    def release(self) :
+        self._status = "Available"
+
+    def buy(self) :
+        self._status = "Occupied"
+
+    def get_seat_no(self) :
+        return self._seat_no
+
+class NormalSeat(Seat) :
+    def __init__(self, seat_no):
+        super().__init__(seat_no)
+    
+    def get_price(self) :
+        return self._price
+
+class SofaSeat(Seat) :
+    def __init__(self, seat_no):
+        super().__init__(seat_no)
+        self._price = 50
+
+    def get_price(self) :
+        return self._price
+
+class HoneyMoonBed(Seat) :
+    def __init__(self, seat_no):
+        super().__init__(seat_no)
+        self._price = 120
+
+    def get_price(self) :
+        return self._price
+
+class Movie :
+    def __init__(self,name,duration,genre,age_rating,showtime:list):
         self.__movie_name = name
         self.__duration = duration
         self.__genre = genre
-        self.__age_rating = aga_rating
-    @property
-    def id(self):
-        return self.__movie_id
-class Theater:
-    def __init__(self,theater_id,type_theater):
-        self.__theater_id = theater_id
-        self.__seats_list = []
-        self.__type_theater = type_theater
-    @property
-    def id(self):
-        return self.__theater_id
-    def search_seats_list_avalible(self,seats):
-        for i in self.__seats_list:
-            for b in seats:
-                if b == i:
-                    return False
-        return True
-class Seat:
-    def __init__(self,seat_id,seat_number,type_seat):
-        self.__seat_id = seat_id
-        self.__seat_number = seat_number
-        self.__type_seat = type_seat
-    @property
-    def id(self):
-        return self.__seat_id
-class ShowtimeSeat(Seat):
-    def __init__(self,seat_id,seat_number,type_seat,status):
-        super().__init__(seat_id,seat_number,type_seat)
-        self.__status = status
-    @property
-    def status(self):
-        return self.__status
-class Goods:
-    def __init__(self,values,name,price,type_goods):
-        self.__values = values
-        self.__name = name
-        self.__price = price
-        self.__type_goods = type_goods
+        self.__age_rating = age_rating
+        self.__showtime_list = showtime
+
+    def get_movie_name(self) :
+        return self.__movie_name
     
-class Order:
-    def __init__(self,goods,user_id):
-        self.__goods = goods
-        self.__user_id = user_id
-        self.__totle_cost = None
-class Booking:
-    def __init__(self,booking_id,user,showtime,timestamp,status):
+    def find_showtime(self,showtime) :
+        for i in self.__showtime_list :
+            if showtime == i :
+                return i
+
+class Showtime :
+    def __init__(self,name,start_time,end_time,subtitle,price):
+        self.__movie_name = name
+        self.__start_time = start_time
+        self.__end_time = end_time
+        self.__subtitle = subtitle
+        self.__price = price
+        self.__status = "Scheduled"
+
+    def is_bookable(self) :
+        if datetime.datetime.time() < self.__start_time and self.__status == "Open" :
+            return True
+        return False
+    
+    def open_booking(self) :
+        self.__status = "Open"
+
+    def get_price(self) :
+        return self.__price
+    
+    def get_start_time(self) :
+        return self.__start_time
+        
+class Goods(ABC) :
+    def __init__(self,name,values:int,price):
+        self._name = name
+        self._values = values
+        self._price = price
+
+    @abstractmethod
+    def get_price(self) :
+        pass
+    
+class Popcorn(Goods) :
+    def __init__(self, name, values:int, price,flavor):
+        super().__init__(name, values, price)
+        self._flavor = flavor
+
+    def get_price(self) :
+        return self._price
+    
+class Drinks(Goods) :
+    def __init__(self, name, values:int, price,flavor):
+        super().__init__(name, values, price)
+        self._flavor = flavor
+
+    def get_price(self) :
+        return self._price
+    
+class Snack(Goods) :
+    def __init__(self, name, values:int, price):
+        super().__init__(name, values, price)
+
+    def get_price(self) :
+        return self._price
+    
+class Booking :
+    def __init__(self,booking_id,member_id,cineplex_name,theater_id,seat_no,movie,showtime):
         self.__booking_id = booking_id
-        self.__user = user
+        self.__member_id = member_id
+        self.__seat_no = seat_no
+        self.__movie_name = movie
         self.__showtime = showtime
-        self.__ticket = None
-        self.__timestamp = timestamp
-        self.__showtime_seat = []
-        self.__status = status
-    @property
-    def id(self):
+        self.__status = "Pending"
+        self.__total_price = None
+        self.__cineplex_name = cineplex_name
+        self.__theater_id = theater_id
+
+    def get_booking_id(self) :
         return self.__booking_id
-class Ticket:
-    def __init__(self,booking,cineplex,user,movie,theater,showtime,seat_list):
-        self.__booking = booking
-        self.__cineplex = cineplex
-        self.__user = user
-        self.__movie = movie
-        self.__theater = theater
-        self.__showtime = showtime
-        self.__seat_list = seat_list
-class Bank:
+    
+    def get_member_id(self) :
+        return self.__member_id
+    
+    def get_cineplex_name(self) :
+        return self.__cineplex_name
+    
+    def get_theater_id(self) :
+        return self.__theater_id
+    
+    def get_seat_no(self) :
+        return self.__seat_no
+    
+    def get_movie_name(self) :
+        return self.__movie_name
+    
+    def get_showtime(self) :
+        return self.__showtime
+
+    def calculate_total(self,theater_price,movie_price,seat_price,member_discount) :
+        total = theater_price + movie_price + seat_price - member_discount
+        self.__total_price = total
+        return total
+    
+    def success(self) :
+        self.__status = "Paid"
+                
+class PaymentGateway :
+    def __init__(self,account_id,price):
+        self.__price = price
+        self.__account_id = account_id
+
+    def pay(self) :
+        return krungjean.payment(self.__account_id,self.__price)
+    
+class Bank :
     def __init__(self,name):
         self.__name = name
         self.__account_list = []
-class Account:
-    def __init__(self,name,balance,id):
-        self.__id = id
+    
+    def create_account(self,name,id,balance) :
+        account = Account(name,id,balance)
+        self.__account_list.append(account)
+
+    def check_account(self,account_id) :
+        for i in self.__account_list :
+            if i.get_id() == account_id :
+                return i
+    
+    def payment(self,account_id,price) :
+        account = self.check_account(account_id)
+        if account != None :
+            return account.deduct(price)
+        else :
+            return "Account not found"
+
+class Account :
+    def __init__(self,name,id,balance) :
         self.__name = name
         self.__balance = balance
-    @property
-    def id(self):
-        return self.__id
-class User:
-    def __init__(self,id,name,email,phone_number,birthday,password):
         self.__id = id
-        self.__name = name
-        self.__email = email
-        self.__phone_number = phone_number
-        self.__birthday = birthday
-        self.__password = password
-        self.__point = 0
-        self.__coupon_list = []
-        self.__ticket_list = []
-        self.__booking_list = []
-        self.__totle_spending = 0
-        self.__type_user = "guest"
-    @property
-    def id(self):
+
+    def deduct(self,amount) :
+        if self.__balance >= amount :
+            self.__balance -= amount
+            return True
+        return False
+    
+    def get_id(self) :
         return self.__id
-class coupon:
-    def __init__(self,id,name):
-        self.__coupon_id = id
-        self.__name = name
-class DiscountCoupon(coupon):
-    def __init__(self, id, name, discount):
-        super().__init__(id, name)
-        self.__discount = discount
-class ExchangeCoupon(coupon):
-    def __init__(self, id, name,goods):
-        super().__init__(id, name)
-        self.__list_goods = goods
-#test script
-# --------------------------------------------
+    
+# --------------------------------------- Set Up ---------------------------------------------- #
 
-#----------------------------------------------
+testjamorplinicex = JamorPlinicex()
+testladkrabang_cineplex = testjamorplinicex.add_cineplex("Ladkrabang")
+testjamorplinicex.register_member("Mr.Potapo","21-12-2549","12345678",datetime.datetime.now().date(),"potato@gmail.com")
 
-#api
+testseatlist = []
+for i in "A B C".split() :
+    for j in range(1,13) :
+        testseatlist.append(HoneyMoonBed(f"{i}{j}"))
+for i in "D E F".split() :
+    for j in range(1,13) :
+        testseatlist.append(SofaSeat(f"{i}{j}"))
+for i in "G H I".split() :
+    for j in range(1,13) :
+        testseatlist.append(NormalSeat(f"{i}{j}"))
+
+testladkrabang_cineplex.add_standard_theater("001",testseatlist)
+testladkrabang_cineplex.add_imax_theater("002",testseatlist)
+testladkrabang_cineplex.add_4dx_theater("003",testseatlist)
+
+testshowtimelist1 = []
+x = 10
+for i in range(0,2) :
+    testshowtimelist1.append(Showtime("AVARTAR 2",f"{x}",f"{x+3}","EN",100))
+
+    x += 4
+
+testladkrabang_cineplex.add_movie("AVATAR 2",3,"action","15+",testshowtimelist1)
+
+testshowtimelist2 = []
+x = 10
+for i in range(0,2) :
+    testshowtimelist2.append(Showtime("Barbie",f"{x}",f"{x+3}","EN",70))
+    x += 4
+
+testladkrabang_cineplex.add_movie("Barbie",3,"prince and princess","3+",testshowtimelist2)
+
+krungjean = Bank("krungjean")
+krungjean.create_account("Potapo","1112",2500)
+
+
+testjamorplinicex.add_booking("13579","12345678","Ladkrabang","003","A5","Barbie",testshowtimelist2[1])
+
+# User : Mr.Potapo , member id : 12345678 , booking id : 13579 , cineplex name : Ladkrabang , Theater : 003 , Seat : A5 , Movie : Barbie , account name : Potapo
+
+
+from fastapi import Query
+
+@app.post("/confirm-booking")
+def confirm_booking_api(
+    booking_id: str = Query(...),
+    user_id: str = Query(...),
+    account_id: str = Query(...)
+):
+
+    result = testjamorplinicex.confirm_booking(
+        booking_id,
+        user_id,
+        account_id
+    )
+    return result
