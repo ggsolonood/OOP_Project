@@ -60,6 +60,11 @@ class TheaterType(Enum):
 
 # ==========================================
 # Account & Bank
+from typing import List, Optional
+from fastmcp import FastMCP
+
+# ==========================================
+# 1. Classes Structure (โครงสร้างคลาสหลัก เหมือนเดิม 100%)
 # ==========================================
 
 class Account:
@@ -461,6 +466,7 @@ class ExchangeCoupon(coupon):
 
 # ==========================================
 # User  ← เพิ่มจาก File1 (ให้ __user_list ของ File2 ใช้งานได้จริง)
+# 2. System (Controller) (ลอจิกเดิมของคุณ Ken ครับ)
 # ==========================================
 
 class User:
@@ -897,6 +903,19 @@ def create_cineplex(cineplex_id: int, name: str) -> str:
     success, msg = system.process_create_cineplex(cineplex_id, name)
     return f"Success: {msg}" if success else f"Error: {msg}"
 
+
+# 3. MCP Tools (ส่วนที่แปลงจาก API Routes)
+# ==========================================
+# สร้าง MCP Server แทน FastAPI
+mcp = FastMCP("JamorCineplex")
+system = JamorCineplex()
+
+@mcp.tool()
+def create_cineplex(cineplex_id: int, name: str) -> str:
+    """สร้างสาขาโรงภาพยนตร์ใหม่ (Cineplex)"""
+    success, msg = system.process_create_cineplex(cineplex_id, name)
+    return f"Success: {msg}" if success else f"Error: {msg}"
+
 @mcp.tool()
 def create_movie(cineplex_id: int, movie_id: int, name: str, duration: int, genre: str, age_rating: str) -> str:
     """เพิ่มภาพยนตร์เรื่องใหม่เข้าไปในระบบของสาขา"""
@@ -1096,4 +1115,30 @@ def get_all_users() -> str:
 
 
 if __name__ == "__main__":
+    @mcp.tool()
+    def create_theater(cineplex_id: int, theater_id: str, type_theater: str) -> str:
+        """สร้างโรงฉายภาพยนตร์ย่อยภายในสาขา"""
+        success, msg = system.process_create_theater(cineplex_id, theater_id, type_theater)
+        return f"Success: {msg}" if success else f"Error: {msg}"
+
+    @mcp.tool()
+    def create_seat(cineplex_id: int, theater_id: str, seat_id: str, seat_number: str, type_seat: str) -> str:
+        """เพิ่มที่นั่งในโรงฉายภาพยนตร์"""
+        success, msg = system.process_create_seat(cineplex_id, theater_id, seat_id, seat_number, type_seat)
+        return f"Success: {msg}" if success else f"Error: {msg}"
+
+    @mcp.tool()
+    def create_showtime(cineplex_id: int, showtime_id: str, movie_id: int, theater_id: str, status: str, subtitle: str, start_time: str, end_time: str, base_price: float) -> str:
+        """สร้างรอบฉายภาพยนตร์"""
+        success, msg = system.process_create_showtime(cineplex_id, showtime_id, movie_id, theater_id, status, subtitle, start_time, end_time, base_price)
+        return f"Success: {msg}" if success else f"Error: {msg}"
+
+    @mcp.tool()
+    def create_coupon(coupon_type: str, coupon_id: str, name: str, discount: float = 0.0, goods_list: List[str] = []) -> str:
+        """สร้างคูปองส่วนลด (discount) หรือ คูปองแลกของ (exchange)"""
+        success, msg = system.process_create_coupon(coupon_type, coupon_id, name, discount, goods_list)
+        return f"Success: {msg}" if success else f"Error: {msg}"
+
+if __name__ == "__main__":
+    # รันเซิร์ฟเวอร์ MCP (ตั้งค่าให้คุยผ่าน Stdio อัตโนมัติ)
     mcp.run()
