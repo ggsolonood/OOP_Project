@@ -1,11 +1,7 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional
-
-app = FastAPI()
-
+from fastmcp import FastMCP
 
 # ==========================================
 # Enums
@@ -15,7 +11,6 @@ class OrderStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
     REFUNDED = "Refunded"
-
 
 # ==========================================
 # Account & Bank
@@ -39,7 +34,6 @@ class Account:
     def increase_balance(self, amount):
         self.__balance += amount
         return True
-
 
 class Bank:
     def __init__(self, name):
@@ -72,7 +66,6 @@ class Bank:
             return account.increase_balance(amount)
         return False
 
-
 # ==========================================
 # Payment
 # ==========================================
@@ -84,7 +77,6 @@ class PaymentGateway:
 
     def pay(self, bank):
         return bank.payment(self.__account_id, self.__amount)
-
 
 # ==========================================
 # Goods
@@ -113,12 +105,10 @@ class Goods(ABC):
         self._values += amount
         return "success"
 
-
 class Popcorn(Goods):
     def __init__(self, name, values: int, price, flavor):
         super().__init__(name, values, price)
         self._flavor = flavor
-
 
 # ==========================================
 # Cineplex
@@ -142,7 +132,6 @@ class Cineplex:
                 if amount_needed == 0 or item.check_values(amount_needed):
                     return item
         return None
-
 
 # ==========================================
 # Order
@@ -184,7 +173,6 @@ class Order:
     def pay(self, bank, gateway):
         return gateway.pay(bank)
 
-
 # ==========================================
 # Coupon
 # ==========================================
@@ -206,10 +194,8 @@ class Coupon:
         self._is_used = (status != "Available")
         return "success"
 
-
 class DiscountCoupon(Coupon):
     pass
-
 
 # ==========================================
 # User / Member
@@ -223,12 +209,10 @@ class User:
     def get_member_id(self):
         return self._member_id
 
-
 class Member(User):
     def __init__(self, name, birthday, member_id, registered_date, email=None, phone_number=None):
         super().__init__(name, member_id)
         self._birthday = birthday
-
 
 # ==========================================
 # JamorPlinicex (Main System)
@@ -310,9 +294,9 @@ class JamorPlinicex:
         if order.pay(self.__bank, gateway):
             target_good.clearstock(values)
             self.__order_list.append(order)
-            return {"result": "Order success", "order_id": order_id, "total_paid": total_price}
+            return f"Order success | Order ID: {order_id} | Total Paid: {total_price} THB"
         else:
-            return "Payment failed"
+            return "Payment failed: Insufficient balance or invalid account."
 
     # --- Feature 2: Cancel Order ---
     def cancel_order(self, order_id, user_id, cineplex_name):
@@ -366,7 +350,7 @@ class JamorPlinicex:
 
 
 # ==========================================
-# Setup
+# Setup & Mock Data
 # ==========================================
 
 kbank = Bank("KBank")
@@ -382,18 +366,28 @@ system.add_discount_coupon("C10", "Discount 10", 10)
 
 
 # ==========================================
-# API Endpoints
+# MCP Tools Setup (Replaces FastAPI Endpoints)
 # ==========================================
+mcp = FastMCP("JamorPlinicex Store System")
 
-@app.post("/order-goods")
-def api_order_goods(
+@mcp.tool()
+def order_goods(
     goods_name: str,
     quantity: int,
     user_id: str,
     account_id: str,
     cineplex_name: str,
-    coupon_id: Optional[str] = None
-):
+    coupon_id: str = None
+) -> str:
+    """
+    ทำการสั่งซื้อสินค้าที่สาขาโรงภาพยนตร์
+    - goods_name: ชื่อสินค้า (เช่น "Popcorn")
+    - quantity: จำนวนที่ต้องการซื้อ
+    - user_id: รหัสสมาชิก (เช่น "M001")
+    - account_id: รหัสบัญชีธนาคาร (เช่น "A123")
+    - cineplex_name: ชื่อสาขา (เช่น "C")
+    - coupon_id: รหัสคูปองส่วนลด (ถ้ามี ปล่อยว่างได้)
+    """
     result = system.order_goods(
         goods_name=goods_name,
         values=quantity,
@@ -402,18 +396,26 @@ def api_order_goods(
         cineplex_name=cineplex_name,
         coupon_id=coupon_id
     )
-    return result
+    return str(result)
 
-
-@app.post("/cancel-order")
-def api_cancel_order(
+@mcp.tool()
+def cancel_order(
     order_id: str,
     user_id: str,
     cineplex_name: str
-):
+) -> str:
+    """
+    ยกเลิกรายการสั่งซื้อสินค้าที่ทำสำเร็จไปแล้ว พร้อมทำการคืนเงิน (Refund) คืนสต็อก และคืนคูปอง
+    - order_id: รหัสการสั่งซื้อ (เช่น "ORD-0001")
+    - user_id: รหัสสมาชิกที่เป็นเจ้าของออเดอร์ (เช่น "M001")
+    - cineplex_name: ชื่อสาขาโรงภาพยนตร์ (เช่น "C")
+    """
     result = system.cancel_order(
         order_id=order_id,
         user_id=user_id,
         cineplex_name=cineplex_name
     )
-    return {"result": result}
+    return str(result)
+
+if __name__ == "__main__":
+    mcp.run()
