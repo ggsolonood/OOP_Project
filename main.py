@@ -1,8 +1,9 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Optional
 from datetime import datetime
 from fastmcp import FastMCP
+
 
 # ==========================================
 # Enums
@@ -60,11 +61,6 @@ class TheaterType(Enum):
 
 # ==========================================
 # Account & Bank
-from typing import List, Optional
-from fastmcp import FastMCP
-
-# ==========================================
-# 1. Classes Structure (โครงสร้างคลาสหลัก เหมือนเดิม 100%)
 # ==========================================
 
 class Account:
@@ -168,59 +164,75 @@ class Snack(Goods):
 
 
 # ==========================================
-# Cineplex  ← File2 เป็นหลัก + เพิ่ม goods_list
+# Coupon
 # ==========================================
 
-class Cineplex:
-    def __init__(self, cineplex_id, name):
-        self.__cineplex_id = cineplex_id
+class Coupon:
+    def __init__(self, id, name):
+        self.__coupon_id = id
         self.__name = name
-        self.__movies_list = []
-        self.__theaters_list = []
-        self.__showtime_list = []
-        self.__goods_list = []
+        self._is_used = False
 
     @property
-    def id(self): return self.__cineplex_id
+    def id(self): return self.__coupon_id
 
-    def search_movie_by_id(self, movie_id):
-        for i in self.__movies_list:
-            if i.id == movie_id: return i
-        return None
+    def get_coupon_id(self): return self.__coupon_id
+    def get_discount(self): return 0
 
-    def search_theater_by_id(self, theater_id):
-        for i in self.__theaters_list:
-            if i.id == theater_id: return i
-        return None
+    def update_status(self, status):
+        self._is_used = (status != "Available")
+        return "success"
 
-    def search_showtime_by_id(self, showtime_id):
-        for i in self.__showtime_list:
-            if i.id == showtime_id: return i
-        return None
 
-    def add_movie(self, movie): self.__movies_list.append(movie)
-    def add_theater(self, theater): self.__theaters_list.append(theater)
-    def add_showtime(self, showtime): self.__showtime_list.append(showtime)
+class DiscountCoupon(Coupon):
+    def __init__(self, id, name, discount):
+        super().__init__(id, name)
+        self.__discount = discount
 
-    def add_popcorn(self, name, values: int, price, flavor):
-        self.__goods_list.append(Popcorn(name, values, price, flavor))
+    def get_discount(self): return self.__discount
 
-    def add_drinks(self, name, values: int, price, flavor):
-        self.__goods_list.append(Drinks(name, values, price, flavor))
 
-    def add_snack(self, name, values: int, price):
-        self.__goods_list.append(Snack(name, values, price))
+class ExchangeCoupon(Coupon):
+    def __init__(self, id, name, goods):
+        super().__init__(id, name)
+        self.__list_goods = goods
 
-    def search_goods_stock(self, goods_name, amount_needed=0):
-        for item in self.__goods_list:
-            if item.get_name() == goods_name:
-                if amount_needed == 0 or item.check_values(amount_needed):
-                    return item
-        return None
+    def get_goods_list(self): return self.__list_goods
 
 
 # ==========================================
-# Movie, Theater, Seat, Showtime  ← File2 เป๊ะ
+# Order
+# ==========================================
+
+class Order:
+    def __init__(self, order_id, goods_name, values, account_id, total_paid, coupon_id=None, status=OrderStatus.COMPLETED):
+        self.__order_id = order_id
+        self.__goods_name = goods_name
+        self.__values = values
+        self.__account_id = account_id
+        self.__total_paid = total_paid
+        self.__coupon_id = coupon_id
+        self.__status = status
+
+    def get_order_id(self): return self.__order_id
+
+    def get_status(self):
+        return self.__status.value if isinstance(self.__status, OrderStatus) else self.__status
+
+    def update_status(self, status: OrderStatus):
+        self.__status = status
+        return "success"
+
+    def get_payment_details(self): return self.__account_id, self.__total_paid
+    def get_items(self): return self.__goods_name, self.__values
+    def get_used_coupon(self): return self.__coupon_id
+
+    def pay(self, bank, gateway):
+        return gateway.pay(bank)
+
+
+# ==========================================
+# Movie, Theater, Seat, Showtime
 # ==========================================
 
 class Movie:
@@ -254,29 +266,6 @@ class Theater:
         return None
 
 
-class Seat:
-    def __init__(self, seat_id, seat_number, type_seat):
-        self.__seat_id = seat_id
-        self.__seat_number = seat_number
-        self.__type_seat = type_seat
-
-    @property
-    def id(self): return self.__seat_id
-    @property
-    def seat_number(self): return self.__seat_number
-    @property
-    def type_seat(self): return self.__type_seat
-
-
-class ShowtimeSeat(Seat):
-    def __init__(self, seat: Seat, status: BookingStatus):
-        super().__init__(seat.id, seat.seat_number, seat.type_seat)
-        self.__status = status
-
-    @property
-    def status(self): return self.__status
-
-
 # Theater subclasses
 class StandardTheater(Theater):
     def __init__(self, theater_id, seat_list=None):
@@ -297,6 +286,20 @@ class FourDXTheater(Theater):
             for s in seat_list: self.add_seat(s)
 
 
+class Seat:
+    def __init__(self, seat_id, seat_number, type_seat):
+        self.__seat_id = seat_id
+        self.__seat_number = seat_number
+        self.__type_seat = type_seat
+
+    @property
+    def id(self): return self.__seat_id
+    @property
+    def seat_number(self): return self.__seat_number
+    @property
+    def type_seat(self): return self.__type_seat
+
+
 # Seat subclasses
 class NormalSeat(Seat):
     def __init__(self, seat_id, seat_number):
@@ -311,9 +314,18 @@ class HoneyMoonBed(Seat):
         super().__init__(seat_id, seat_number, SeatType.HONEYMOONBED)
 
 
+class ShowtimeSeat(Seat):
+    def __init__(self, seat: Seat, status: BookingStatus):
+        super().__init__(seat.id, seat.seat_number, seat.type_seat)
+        self.__status = status
+
+    @property
+    def status(self): return self.__status
+
+
 class Showtime:
-    def __init__(self, showtime, movie, theater, status, subtitle, start_time, end_time, base_price):
-        self.__id = showtime
+    def __init__(self, showtime_id, movie, theater, status, subtitle, start_time, end_time, base_price):
+        self.__id = showtime_id
         self.__movie = movie
         self.__theater = theater
         self.__status = status
@@ -329,6 +341,10 @@ class Showtime:
     def movie(self): return self.__movie
     @property
     def theater(self): return self.__theater
+    @property
+    def status(self): return self.__status
+    @property
+    def subtitle(self): return self.__subtitle
     @property
     def base_price(self): return self.__base_price
 
@@ -399,74 +415,59 @@ class Ticket:
 
 
 # ==========================================
-# Order
+# Cineplex
 # ==========================================
 
-class Order:
-    def __init__(self, order_id, goods_name, values, account_id, total_paid, coupon_id=None, status=OrderStatus.COMPLETED):
-        self.__order_id = order_id
-        self.__goods_name = goods_name
-        self.__values = values
-        self.__account_id = account_id
-        self.__total_paid = total_paid
-        self.__coupon_id = coupon_id
-        self.__status = status
-
-    def get_order_id(self): return self.__order_id
-
-    def get_status(self):
-        return self.__status.value if isinstance(self.__status, OrderStatus) else self.__status
-
-    def update_status(self, status: OrderStatus):
-        self.__status = status
-        return "success"
-
-    def get_payment_details(self): return self.__account_id, self.__total_paid
-    def get_items(self): return self.__goods_name, self.__values
-    def get_used_coupon(self): return self.__coupon_id
-
-    def pay(self, bank, gateway):
-        return gateway.pay(bank)
-
-
-# ==========================================
-# Coupon  ← File2 เป็นหลัก + เพิ่ม get_discount / update_status
-# ==========================================
-
-class coupon:
-    def __init__(self, id, name):
-        self.__coupon_id = id
+class Cineplex:
+    def __init__(self, cineplex_id, name):
+        self.__cineplex_id = cineplex_id
         self.__name = name
-        self._is_used = False
+        self.__movies_list = []
+        self.__theaters_list = []
+        self.__showtime_list = []
+        self.__goods_list = []
 
     @property
-    def id(self): return self.__coupon_id
+    def id(self): return self.__cineplex_id
 
-    def get_coupon_id(self): return self.__coupon_id
-    def get_discount(self): return 0
+    def search_movie_by_id(self, movie_id):
+        for i in self.__movies_list:
+            if i.id == movie_id: return i
+        return None
 
-    def update_status(self, status):
-        self._is_used = (status != "Available")
-        return "success"
+    def search_theater_by_id(self, theater_id):
+        for i in self.__theaters_list:
+            if i.id == theater_id: return i
+        return None
 
+    def search_showtime_by_id(self, showtime_id):
+        for i in self.__showtime_list:
+            if i.id == showtime_id: return i
+        return None
 
-class DiscountCoupon(coupon):
-    def __init__(self, id, name, discount):
-        super().__init__(id, name)
-        self.__discount = discount
+    def add_movie(self, movie): self.__movies_list.append(movie)
+    def add_theater(self, theater): self.__theaters_list.append(theater)
+    def add_showtime(self, showtime): self.__showtime_list.append(showtime)
 
-    def get_discount(self): return self.__discount
+    def add_popcorn(self, name, values: int, price, flavor):
+        self.__goods_list.append(Popcorn(name, values, price, flavor))
 
+    def add_drinks(self, name, values: int, price, flavor):
+        self.__goods_list.append(Drinks(name, values, price, flavor))
 
-class ExchangeCoupon(coupon):
-    def __init__(self, id, name, goods):
-        super().__init__(id, name)
-        self.__list_goods = goods
+    def add_snack(self, name, values: int, price):
+        self.__goods_list.append(Snack(name, values, price))
+
+    def search_goods_stock(self, goods_name, amount_needed=0):
+        for item in self.__goods_list:
+            if item.get_name() == goods_name:
+                if amount_needed == 0 or item.check_values(amount_needed):
+                    return item
+        return None
 
 
 # ==========================================
-# User  ← เพิ่มจาก File1 (ให้ __user_list ของ File2 ใช้งานได้จริง)
-# 2. System (Controller) (ลอจิกเดิมของคุณ Ken ครับ)
+# User
 # ==========================================
 
 class User:
@@ -523,7 +524,7 @@ class Member(User):
 
 
 # ==========================================
-# JamorCineplex  ← File2 เป็นหลัก + เพิ่ม order/cancel
+# JamorCineplex — Main System
 # ==========================================
 
 class JamorCineplex:
@@ -537,7 +538,6 @@ class JamorCineplex:
         self.__ticket_list = []
         self.__order_counter = 1
 
-    # --- Search (File2 เป๊ะ) ---
     def search_cineplex_by_id(self, cineplex_id):
         for i in self.__cineplex_list:
             if i.id == cineplex_id: return i
@@ -553,7 +553,21 @@ class JamorCineplex:
             if o.get_order_id() == order_id: return o
         return None
 
-    # --- process_create (File2 เป๊ะ) ---
+    def search_booking_by_id(self, booking_id):
+        for b in self.__booking_list:
+            if b.id == booking_id: return b
+        return None
+
+    def register_member(self, name, birthday, member_id, registered_date, email=None, phone_number=None):
+        self.__user_list.append(Member(name, birthday, member_id, registered_date, email, phone_number))
+
+    def add_user(self, user):
+        self.__user_list.append(user)
+
+    def get_all_users(self):
+        return self.__user_list
+
+    # --- Admin: Create ---
     def process_create_cineplex(self, cineplex_id, name):
         if self.search_cineplex_by_id(cineplex_id):
             return False, "Cineplex ID already exists."
@@ -593,36 +607,21 @@ class JamorCineplex:
         cineplex.add_showtime(Showtime(showtime_id, movie, theater, status, subtitle, start_time, end_time, base_price))
         return True, "Showtime created successfully."
 
-    def process_create_coupon(self, coupon_type, coupon_id, name, discount, goods_list):
+    def process_create_coupon(self, coupon_type, coupon_id, name, discount=0.0, goods_list=None):
         if coupon_type.lower() == "discount":
             new_coupon = DiscountCoupon(coupon_id, name, discount)
         elif coupon_type.lower() == "exchange":
-            new_coupon = ExchangeCoupon(coupon_id, name, goods_list)
+            new_coupon = ExchangeCoupon(coupon_id, name, goods_list or [])
         else:
             return False, "Invalid coupon_type. Use 'discount' or 'exchange'."
         self.__coupon_list.append(new_coupon)
         return True, "Coupon created successfully."
 
-    def register_member(self, name, birthday, member_id, registered_date, email=None, phone_number=None):
-        self.__user_list.append(Member(name, birthday, member_id, registered_date, email, phone_number))
-
-    def add_user(self, user):
-        self.__user_list.append(user)
-
-    def get_all_users(self):
-        return self.__user_list
-
-    def search_booking_by_id(self, booking_id):
-        for b in self.__booking_list:
-            if b.id == booking_id: return b
-        return None
-
-    # --- Feature: Get Booking History ---
+    # --- Booking ---
     def process_get_booking_history(self, user_id: str, status_filter: str = None):
         user = self.search_user_by_id(user_id)
         if not user: return False, "Member not found", None
 
-        # GUEST ไม่มีสิทธิ์ดู history
         if user.tier == MemberTier.GUEST:
             return False, "Guest members cannot view booking history", None
 
@@ -636,7 +635,6 @@ class JamorCineplex:
 
         return True, "OK", (user, bookings)
 
-    # --- Feature: Create Booking ---
     def process_create_booking(self, booking_id: str, user_id: str, cineplex_id: int, showtime_id: str, seat_nos: list):
         user = self.search_user_by_id(user_id)
         if not user: return False, "Member not found"
@@ -650,8 +648,6 @@ class JamorCineplex:
         if self.search_booking_by_id(booking_id): return False, "Booking ID already exists"
 
         theater = showtime.theater
-
-        # ตรวจสอบและรวบรวม seat
         seats = []
         for seat_no in seat_nos:
             if not showtime.is_seat_available(seat_no):
@@ -660,14 +656,12 @@ class JamorCineplex:
             if not seat: return False, f"Seat {seat_no} not found in theater"
             seats.append(seat)
 
-        # คำนวณราคา: base_price (showtime) + seat_type_price แต่ละที่นั่ง หักส่วนลด MemberTier
         base_price = showtime.base_price
         seat_total = sum(s.type_seat.get_price() for s in seats)
-        raw_total = (base_price + seat_total)
+        raw_total = base_price + seat_total
         discount = user.get_discount()
         total_price = round(raw_total * (1 - discount), 2)
 
-        # สร้าง Booking
         booking = Booking(booking_id, user, showtime, datetime.now(), BookingStatus.PENDING, total_price)
         booked_seats = showtime.add_seats(seats, BookingStatus.PENDING)
         booking.showtime_seat = booked_seats
@@ -679,7 +673,6 @@ class JamorCineplex:
                       f"Seats: {seat_nos} | Total: {total_price} THB "
                       f"(Discount {int(discount*100)}%)")
 
-    # --- Feature: Cancel Booking (ไม่คืนเงิน) ---
     def process_cancel_booking(self, booking_id: str, user_id: str):
         user = self.search_user_by_id(user_id)
         if not user: return False, "Member not found"
@@ -692,14 +685,12 @@ class JamorCineplex:
         if booking.status == BookingStatus.COMPLETED:
             return False, "Cannot cancel a completed booking"
 
-        # คืน seat กลับ showtime
         seat_nos = [s.seat_number for s in booking.showtime_seat]
         booking.showtime.remove_seats(seat_nos)
         booking.status = BookingStatus.CANCELLED
 
         return True, f"Booking {booking_id} cancelled (no refund)"
 
-    # --- Feature: Confirm Booking ---
     def process_confirm_booking(self, booking_id: str, user_id: str, account_id: str):
         user = self.search_user_by_id(user_id)
         if not user: return False, "Member not found"
@@ -716,35 +707,25 @@ class JamorCineplex:
 
         if result is True:
             booking.status = BookingStatus.CONFIRMED
-
-            # สร้าง Ticket เก็บใน booking, user, system
             showtime = booking.showtime
             ticket = Ticket(
-                booking=booking,
-                cineplex=None,
-                user=user,
-                movie=showtime.movie,
-                theater=showtime.theater,
-                showtime=showtime,
-                seat_list=booking.showtime_seat
+                booking=booking, cineplex=None, user=user,
+                movie=showtime.movie, theater=showtime.theater,
+                showtime=showtime, seat_list=booking.showtime_seat
             )
             booking.ticket = ticket
             user.add_ticket(ticket)
             self.__ticket_list.append(ticket)
 
-            # เพิ่ม point: 1 ที่นั่ง = 10 point
             seat_count = len(booking.showtime_seat)
             points_earned = seat_count * 10
             user.add_point(points_earned)
 
             return True, (f"Confirm booking success | Total Paid: {total} THB | "
                           f"Points earned: {points_earned} (Total: {user.get_point()})")
-        elif result is False:
-            return False, "Failed: Insufficient balance"
         else:
-            return False, str(result)
+            return False, "Failed: Insufficient balance"
 
-    # --- Feature: Change Booking ---
     def process_change_booking(self, user_id: str, booking_id: str, new_seat_nos: list):
         user = self.search_user_by_id(user_id)
         if not user: return None, "User not found"
@@ -800,7 +781,7 @@ class JamorCineplex:
 
         return None, "Invalid booking status"
 
-    # --- Feature: Order Goods ---
+    # --- Goods ---
     def process_order_goods(self, cineplex_id, goods_name, values, user_id, account_id, coupon_id=None):
         member = self.search_user_by_id(user_id)
         if not member: return False, "Member not found"
@@ -835,7 +816,6 @@ class JamorCineplex:
         else:
             return False, "Payment failed: Insufficient balance or invalid account."
 
-    # --- Feature: Cancel Order ---
     def process_cancel_order(self, cineplex_id, order_id, user_id):
         member = self.search_user_by_id(user_id)
         if not member: return False, "Member not found"
@@ -850,33 +830,25 @@ class JamorCineplex:
         if current_status == OrderStatus.COMPLETED.value:
             account_id, total_paid = order.get_payment_details()
             if self.__bank.refund(account_id, total_paid):
-                item_text, coupon_text = self._restore_order_resources(order, cineplex_id)
+                goods_name, values = order.get_items()
+                cineplex = self.search_cineplex_by_id(cineplex_id)
+                restored_item_text = f"{values} x {goods_name}"
+                restored_coupon_text = "None"
+                if cineplex:
+                    target_good = cineplex.search_goods_stock(goods_name)
+                    if target_good:
+                        target_good.restore_stock(values)
+                coupon_id = order.get_used_coupon()
+                if coupon_id:
+                    for c in self.__coupon_list:
+                        if c.get_coupon_id() == coupon_id:
+                            c.update_status("Available")
+                            restored_coupon_text = str(coupon_id)
+                            break
                 order.update_status(OrderStatus.CANCELLED)
-                return True, f"Cancel success, Refund {total_paid} THB to account {account_id}. Restored: {item_text}, Coupon: {coupon_text}."
+                return True, f"Cancel success, Refund {total_paid} THB to account {account_id}. Restored: {restored_item_text}, Coupon: {restored_coupon_text}."
             else:
                 return False, "Refund failed"
-
-    def _restore_order_resources(self, order, cineplex_id):
-        goods_name, values = order.get_items()
-        cineplex = self.search_cineplex_by_id(cineplex_id)
-
-        restored_item_text = f"{values} x {goods_name}"
-        restored_coupon_text = "None"
-
-        if cineplex:
-            target_good = cineplex.search_goods_stock(goods_name)
-            if target_good:
-                target_good.restore_stock(values)
-
-        coupon_id = order.get_used_coupon()
-        if coupon_id:
-            for c in self.__coupon_list:
-                if c.get_coupon_id() == coupon_id:
-                    c.update_status("Available")
-                    restored_coupon_text = str(coupon_id)
-                    break
-
-        return restored_item_text, restored_coupon_text
 
 
 # ==========================================
@@ -889,13 +861,11 @@ system = JamorCineplex(kbank)
 
 
 # ==========================================
-# MCP Server
+# MCP Tools
 # ==========================================
 
 mcp = FastMCP("JamorCineplex")
 
-
-# --- Cinema Management Tools (File2 เป๊ะ) ---
 
 @mcp.tool()
 def create_cineplex(cineplex_id: int, name: str) -> str:
@@ -903,18 +873,6 @@ def create_cineplex(cineplex_id: int, name: str) -> str:
     success, msg = system.process_create_cineplex(cineplex_id, name)
     return f"Success: {msg}" if success else f"Error: {msg}"
 
-
-# 3. MCP Tools (ส่วนที่แปลงจาก API Routes)
-# ==========================================
-# สร้าง MCP Server แทน FastAPI
-mcp = FastMCP("JamorCineplex")
-system = JamorCineplex()
-
-@mcp.tool()
-def create_cineplex(cineplex_id: int, name: str) -> str:
-    """สร้างสาขาโรงภาพยนตร์ใหม่ (Cineplex)"""
-    success, msg = system.process_create_cineplex(cineplex_id, name)
-    return f"Success: {msg}" if success else f"Error: {msg}"
 
 @mcp.tool()
 def create_movie(cineplex_id: int, movie_id: int, name: str, duration: int, genre: str, age_rating: str) -> str:
@@ -922,11 +880,13 @@ def create_movie(cineplex_id: int, movie_id: int, name: str, duration: int, genr
     success, msg = system.process_create_movie(cineplex_id, movie_id, name, duration, genre, age_rating)
     return f"Success: {msg}" if success else f"Error: {msg}"
 
+
 @mcp.tool()
 def create_theater(cineplex_id: int, theater_id: str, type_theater: str) -> str:
     """สร้างโรงฉายภาพยนตร์ย่อยภายในสาขา"""
     success, msg = system.process_create_theater(cineplex_id, theater_id, type_theater)
     return f"Success: {msg}" if success else f"Error: {msg}"
+
 
 @mcp.tool()
 def create_seat(cineplex_id: int, theater_id: str, seat_id: str, seat_number: str, type_seat: str) -> str:
@@ -934,11 +894,13 @@ def create_seat(cineplex_id: int, theater_id: str, seat_id: str, seat_number: st
     success, msg = system.process_create_seat(cineplex_id, theater_id, seat_id, seat_number, type_seat)
     return f"Success: {msg}" if success else f"Error: {msg}"
 
+
 @mcp.tool()
 def create_showtime(cineplex_id: int, showtime_id: str, movie_id: int, theater_id: str, status: str, subtitle: str, start_time: str, end_time: str, base_price: float) -> str:
     """สร้างรอบฉายภาพยนตร์"""
     success, msg = system.process_create_showtime(cineplex_id, showtime_id, movie_id, theater_id, status, subtitle, start_time, end_time, base_price)
     return f"Success: {msg}" if success else f"Error: {msg}"
+
 
 @mcp.tool()
 def create_coupon(coupon_type: str, coupon_id: str, name: str, discount: float = 0.0, goods_list: List[str] = []) -> str:
@@ -946,8 +908,6 @@ def create_coupon(coupon_type: str, coupon_id: str, name: str, discount: float =
     success, msg = system.process_create_coupon(coupon_type, coupon_id, name, discount, goods_list)
     return f"Success: {msg}" if success else f"Error: {msg}"
 
-
-# --- Store Tools (เพิ่มจาก File1) ---
 
 @mcp.tool()
 def order_goods(
@@ -998,8 +958,6 @@ def cancel_order(
     return f"Success: {msg}" if success else f"Error: {msg}"
 
 
-# --- Booking Tools ---
-
 @mcp.tool()
 def create_booking(
     booking_id: str,
@@ -1015,7 +973,7 @@ def create_booking(
     - cineplex_id: รหัสสาขา (เช่น 1)
     - showtime_id: รหัสรอบฉาย (เช่น "ST01")
     - seat_nos: รายการเลขที่นั่ง (เช่น ["A1", "A2"])
-    ราคา = base_price ของรอบฉาย + ราคาประเภทที่นั่ง หักส่วนลดตาม MemberTier
+    ราคา = base_price + ราคาประเภทที่นั่ง หักส่วนลดตาม MemberTier
     (NORMALSEAT=100, SOFA=200, HONEYMOONBED=350 | SILVER=5%, GOLD=10%, PLATINUM=15%, GUEST=0%)
     """
     success, msg = system.process_create_booking(booking_id, user_id, cineplex_id, showtime_id, seat_nos)
@@ -1032,16 +990,18 @@ def cancel_booking(booking_id: str, user_id: str) -> str:
     success, msg = system.process_cancel_booking(booking_id, user_id)
     return f"Success: {msg}" if success else f"Error: {msg}"
 
+
 @mcp.tool()
 def confirm_booking(booking_id: str, user_id: str, account_id: str) -> str:
     """
-    ยืนยันการจองภาพยนตร์และดำเนินการหักเงินผ่านบัญชีธนาคาร
+    ยืนยันการจองและหักเงินผ่านบัญชีธนาคาร
     - booking_id: รหัสการจอง (เช่น "BK01")
     - user_id: รหัสสมาชิก (เช่น "U01")
-    - account_id: รหัสบัญชีธนาคารสำหรับตัดเงิน (เช่น "A123")
+    - account_id: รหัสบัญชีธนาคาร (เช่น "A123")
     """
     success, msg = system.process_confirm_booking(booking_id, user_id, account_id)
     return f"Success: {msg}" if success else f"Error: {msg}"
+
 
 @mcp.tool()
 def change_booking_seats(user_id: str, booking_id: str, new_seat_nos: List[str]) -> str:
@@ -1064,10 +1024,9 @@ def change_booking_seats(user_id: str, booking_id: str, new_seat_nos: List[str])
 @mcp.tool()
 def get_booking_history(user_id: str, status_filter: str = None) -> str:
     """
-    ดูประวัติการจองภาพยนตร์ของสมาชิก (SILVER, GOLD, PLATINUM เท่านั้น — GUEST ไม่มีสิทธิ์)
+    ดูประวัติการจองของสมาชิก (GUEST ไม่มีสิทธิ์)
     - user_id: รหัสสมาชิก (เช่น "U01")
-    - status_filter: กรองตามสถานะ (ถ้าไม่ระบุ = แสดงทั้งหมด)
-      ค่าที่รับได้: "Pending", "Confirmed", "Completed", "Cancelled"
+    - status_filter: กรองตามสถานะ "Pending", "Confirmed", "Completed", "Cancelled"
     """
     success, msg, data = system.process_get_booking_history(user_id, status_filter)
     if not success:
@@ -1096,9 +1055,7 @@ def get_booking_history(user_id: str, status_filter: str = None) -> str:
 
 @mcp.tool()
 def get_all_users() -> str:
-    """
-    ดูรายชื่อสมาชิกทั้งหมดในระบบ พร้อม Tier และ Points
-    """
+    """ดูรายชื่อสมาชิกทั้งหมดในระบบ พร้อม Tier และ Points"""
     users = system.get_all_users()
     if not users:
         return "No users in the system."
@@ -1115,30 +1072,4 @@ def get_all_users() -> str:
 
 
 if __name__ == "__main__":
-    @mcp.tool()
-    def create_theater(cineplex_id: int, theater_id: str, type_theater: str) -> str:
-        """สร้างโรงฉายภาพยนตร์ย่อยภายในสาขา"""
-        success, msg = system.process_create_theater(cineplex_id, theater_id, type_theater)
-        return f"Success: {msg}" if success else f"Error: {msg}"
-
-    @mcp.tool()
-    def create_seat(cineplex_id: int, theater_id: str, seat_id: str, seat_number: str, type_seat: str) -> str:
-        """เพิ่มที่นั่งในโรงฉายภาพยนตร์"""
-        success, msg = system.process_create_seat(cineplex_id, theater_id, seat_id, seat_number, type_seat)
-        return f"Success: {msg}" if success else f"Error: {msg}"
-
-    @mcp.tool()
-    def create_showtime(cineplex_id: int, showtime_id: str, movie_id: int, theater_id: str, status: str, subtitle: str, start_time: str, end_time: str, base_price: float) -> str:
-        """สร้างรอบฉายภาพยนตร์"""
-        success, msg = system.process_create_showtime(cineplex_id, showtime_id, movie_id, theater_id, status, subtitle, start_time, end_time, base_price)
-        return f"Success: {msg}" if success else f"Error: {msg}"
-
-    @mcp.tool()
-    def create_coupon(coupon_type: str, coupon_id: str, name: str, discount: float = 0.0, goods_list: List[str] = []) -> str:
-        """สร้างคูปองส่วนลด (discount) หรือ คูปองแลกของ (exchange)"""
-        success, msg = system.process_create_coupon(coupon_type, coupon_id, name, discount, goods_list)
-        return f"Success: {msg}" if success else f"Error: {msg}"
-
-if __name__ == "__main__":
-    # รันเซิร์ฟเวอร์ MCP (ตั้งค่าให้คุยผ่าน Stdio อัตโนมัติ)
     mcp.run()
