@@ -724,6 +724,7 @@ user1.add_booking(booking1)
 # ==========================================
 # MCP Tools (รวมทุก tool)
 # ==========================================
+#new FastMCP
 
 mcp = FastMCP("JamorCineplex System")
 
