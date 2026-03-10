@@ -246,3 +246,9 @@ def view_booking_history(user_id: str):
             "price":      b.total_price,
         })
     return {"message":msg,"booking history":booking_history_data}
+
+@user_router.post("/{user_id}/review_movie")
+def review_movie(user_id:str,booking_id:str,star:int,comment:str) :
+    success , msg = get_system().process_review_movie(user_id,booking_id,star,comment)
+    if not success : raise HTTPException(status_code=400 , detail=msg)
+    return  {"message":msg}

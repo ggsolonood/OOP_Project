@@ -3,7 +3,7 @@ from typing import List, Optional
 from enums import (BookingStatus, MemberTier, OrderStatus, SeatType, TheaterType)
 from payment import Account, Bank, PaymentGateway, Order
 from goods import Goods
-from theater import Seat, Theater, Movie, Showtime, ShowtimeSeat
+from theater import Seat, Theater, Movie, Showtime, ShowtimeSeat , Review
 from user import Booking, Ticket, User
 
 
@@ -516,3 +516,19 @@ class JamorCineplex:
                 return True , "You have never made a booking." , None
         else :
             return False , "User not found." , None
+        
+    def process_review_movie(self,user_id,booking_id,star,comment) :
+        if star not in [1,2,3,4,5] :
+            return False , "Can rate 1 - 5 star only" , None
+        user = self.search_user_by_id(user_id)
+        if user :
+            booking = user.search_booking_by_id(booking_id)
+            if booking :
+                movie = booking.showtime.movie
+                review = Review(star,comment,user.name)
+                movie.add_reiew(review)
+                return True , "Review success"
+            else :
+                return False , "Booking not found"
+        else :
+            return False , "User not found."
