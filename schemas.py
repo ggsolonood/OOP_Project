@@ -3,12 +3,10 @@ from pydantic import BaseModel
 
 
 class CineplexCreate(BaseModel):
-    cineplex_id: str
     name: str
 
 class MovieCreate(BaseModel):
     cineplex_id: str
-    movie_id: str
     name: str
     duration: int
     genre: str
@@ -16,19 +14,16 @@ class MovieCreate(BaseModel):
 
 class TheaterCreate(BaseModel):
     cineplex_id: str
-    theater_id: str
     type_theater: str   # "Standard" | "IMAX" | "4DX"  (case-insensitive)
 
 class SeatCreate(BaseModel):
     cineplex_id: str
     theater_id: str
-    seat_id: str
     seat_number: str
     type_seat: str      # "Normalseat" | "Sofa" | "Honeymoonbed"  (case-insensitive)
 
 class ShowtimeCreate(BaseModel):
     cineplex_id: str
-    showtime_id: str
     movie_id: str
     theater_id: str
     status: str
@@ -39,7 +34,6 @@ class ShowtimeCreate(BaseModel):
 
 class CouponCreate(BaseModel):
     coupon_type: str
-    coupon_id: str
     name: str
     discount: float = 0.0
     goods_list: List[str] = []

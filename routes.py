@@ -4,7 +4,11 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from theater import Showtime
 from enums import BookingStatus
-from schemas import CouponCreate, BookingCreate, BookingChangeSeats
+
+from schemas import (
+    CineplexCreate, MovieCreate, TheaterCreate, SeatCreate, 
+    ShowtimeCreate, CouponCreate, BookingCreate, BookingChangeSeats
+)
 
 admin_router   = APIRouter(prefix="/admin",   tags=["Cinema Management"])
 store_router   = APIRouter(prefix="/store",   tags=["Store"])
@@ -47,71 +51,57 @@ def get_showtimes_by_movie_name(movie_name: str = Query(..., description="ชื
 ## ── ROUTES_ADMIN ──────────────────────────────────────────────────────────
 
 @admin_router.post("/cineplex/")
-def create_cineplex(cineplex_id: str, name: str):
-    success, msg = get_system().process_create_cineplex(cineplex_id, name)
+def create_cineplex(body: CineplexCreate):
+    success, msg = get_system().process_create_cineplex(body.name)
     if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"message": msg}
+    return msg
 
 
 @admin_router.post("/movie/")
-def create_movie(cineplex_id: str, movie_id: str, name: str,
-                 duration: int, genre: str, age_rating: str):
-    success, msg = get_system().process_create_movie(cineplex_id, movie_id, name, duration, genre, age_rating)
+def create_movie(body: MovieCreate):
+    success, msg = get_system().process_create_movie(
+        body.cineplex_id, body.name, body.duration, body.genre, body.age_rating
+    )
     if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"message": msg}
+    return msg
 
 
 @admin_router.post("/theater/")
-def create_theater(cineplex_id: str, theater_id: str, type_theater: str):
+def create_theater(body: TheaterCreate):
     """**type_theater**: `Standard` | `IMAX` | `4DX`  (case-insensitive)"""
-    success, msg = get_system().process_create_theater(cineplex_id, theater_id, type_theater)
+    success, msg = get_system().process_create_theater(body.cineplex_id, body.type_theater)
     if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"message": msg}
+    return msg
 
 
 @admin_router.post("/seat/")
-def create_seat(cineplex_id: str, theater_id: str, seat_id: str,
-                seat_number: str, type_seat: str):
+def create_seat(body: SeatCreate):
     """**type_seat**: `Normalseat` | `Sofa` | `Honeymoonbed`  (case-insensitive)"""
-    success, msg = get_system().process_create_seat(cineplex_id, theater_id, seat_id, seat_number, type_seat)
+    success, msg = get_system().process_create_seat(
+        body.cineplex_id, body.theater_id, body.seat_number, body.type_seat
+    )
     if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"message": msg}
+    return msg
 
 
 @admin_router.post("/showtime/")
-def create_showtime(cineplex_id: str, showtime_id: str, movie_id: str, theater_id: str,
-                    status: str, subtitle: str, start_time: str, end_time: str, base_price: float):
+def create_showtime(body: ShowtimeCreate):
     """**start_time / end_time** format: `YYYY-MM-DD HH:MM` — ระบบเช็ค time conflict อัตโนมัติ"""
     success, msg = get_system().process_create_showtime(
-        cineplex_id, showtime_id, movie_id, theater_id,
-        status, subtitle, start_time, end_time, base_price,
+        body.cineplex_id, body.movie_id, body.theater_id,
+        body.status, body.subtitle, body.start_time, body.end_time, body.base_price
     )
     if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"message": msg}
+    return msg
 
 
 @admin_router.post("/coupon/")
 def create_coupon(body: CouponCreate):
-    """
-    **last_date** format: `YYYY-MM-DD HH:MM`  ละไว้ = ไม่มีวันหมดอายุ
-
-    ```json
-    {
-      "coupon_type": "discount",
-      "coupon_id":   "C30",
-      "name":        "Discount 30",
-      "discount":    30.0,
-      "goods_list":  [],
-      "last_date":   null
-    }
-    ```
-    """
     success, msg = get_system().process_create_coupon(
-        body.coupon_type, body.coupon_id, body.name,
-        body.discount, body.goods_list, body.last_date,
+        body.coupon_type, body.name, body.discount, body.goods_list, body.last_date
     )
     if not success: raise HTTPException(status_code=400, detail=msg)
-    return {"message": msg}
+    return msg
 
 
 @admin_router.get("/showtimes/")
@@ -161,16 +151,6 @@ def cancel_order(cineplex_id: str, order_id: str, user_id: str):
 
 @booking_router.post("/")
 def create_booking(body: BookingCreate):
-    """
-    ```json
-    {
-      "user_id":     "U01",
-      "cineplex_id": "CPX01",
-      "showtime_id": "ST01",
-      "seat_nos":    ["B1", "B2"]
-    }
-    ```
-    """
     success, msg = get_system().process_create_booking(
         body.user_id, body.cineplex_id,
         body.showtime_id, body.seat_nos,
@@ -195,14 +175,6 @@ def cancel_booking(booking_id: str, user_id: str):
 
 @booking_router.put("/{booking_id}/seats")
 def change_booking_seats(booking_id: str, body: BookingChangeSeats):
-    """
-    ```json
-    {
-      "user_id":      "U01",
-      "new_seat_nos": ["A1", "B1"]
-    }
-    ```
-    """
     booking, msg = get_system().process_change_booking(body.user_id, booking_id, body.new_seat_nos)
     if not booking: raise HTTPException(status_code=400, detail=msg)
     return {
@@ -259,14 +231,6 @@ def view_booking_history(user_id: str):
 
 @user_router.post("/register")
 def register(user_id: str, password: str):
-    """
-    ลงทะเบียน password ให้ user ที่มีอยู่ในระบบ
-
-    - **user_id**: ID ของ user ที่ถูกสร้างโดย admin แล้ว
-    - **password**: รหัสผ่าน (อย่างน้อย 4 ตัวอักษร)
-    - หลัง register สำเร็จ tier จะถูก upgrade เป็น **Silver** อัตโนมัติ
-    - ถ้า register แล้ว จะไม่สามารถ register ซ้ำได้
-    """
     success, result = get_system().process_register(user_id, password)
     if not success:
         raise HTTPException(status_code=400, detail=result)
@@ -275,13 +239,6 @@ def register(user_id: str, password: str):
 
 @user_router.post("/login")
 def login(user_id: str, password: str):
-    """
-    เข้าสู่ระบบด้วย user_id และ password
-
-    - **user_id**: ID ของ user
-    - **password**: รหัสผ่านที่ตั้งไว้ตอน register
-    - GUEST ที่ยังไม่ register จะ login ไม่ได้
-    """
     success, result = get_system().process_login(user_id, password)
     if not success:
         raise HTTPException(status_code=401, detail=result)

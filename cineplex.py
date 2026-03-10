@@ -108,6 +108,15 @@ class JamorCineplex:
         self.__order_list:    List[Order]    = []
         self.__coupon_list:   List[Coupon]   = []
         self.__ticket_list:   List[Ticket]   = []
+        
+        # เพิ่ม Counter สำหรับ Generate ID
+        self.__cineplex_counter = 1
+        self.__movie_counter    = 1
+        self.__theater_counter  = 1
+        self.__seat_counter     = 1
+        self.__showtime_counter = 1
+        self.__coupon_counter   = 1
+        
         self.__order_counter = 1
         self.__booking_id = 0
 
@@ -150,42 +159,60 @@ class JamorCineplex:
 
     # ── admin process ──
 
-    def process_create_cineplex(self, cineplex_id: str, name: str):
+    def process_create_cineplex(self, name: str):
+        cineplex_id = f"CPX-{self.__cineplex_counter:04d}"
+        self.__cineplex_counter += 1
+        
         if self.search_cineplex_by_id(cineplex_id):
             return False, "Cineplex ID already exists."
+            
         self.__cineplex_list.append(Cineplex(cineplex_id, name))
-        return True, "Cineplex created successfully."
+        return True, {"message": "Cineplex created successfully.", "cineplex_id": cineplex_id}
 
-    def process_create_movie(self, cineplex_id, movie_id, name, duration, genre, age_rating):
+    def process_create_movie(self, cineplex_id, name, duration, genre, age_rating):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex: return False, "Cineplex not found."
+        
+        movie_id = f"MOV-{self.__movie_counter:04d}"
+        self.__movie_counter += 1
+        
         if cineplex.search_movie_by_id(movie_id): return False, "Movie ID already exists."
+        
         cineplex.add_movie(Movie(movie_id, name, duration, genre, age_rating))
-        return True, "Movie created successfully."
+        return True, {"message": "Movie created successfully.", "movie_id": movie_id}
 
-    def process_create_theater(self, cineplex_id: str, theater_id: str, type_theater: str):
+    def process_create_theater(self, cineplex_id: str, type_theater: str):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex: return False, "Cineplex not found."
+        
+        theater_id = f"THT-{self.__theater_counter:04d}"
+        self.__theater_counter += 1
+        
         if cineplex.search_theater_by_id(theater_id): return False, "Theater ID already exists."
+        
         try:
             cineplex.add_theater(Theater.create(theater_id, type_theater))
         except ValueError as e:
             return False, str(e)
-        return True, "Theater created successfully."
+        return True, {"message": "Theater created successfully.", "theater_id": theater_id}
 
     def process_create_seat(self, cineplex_id: str, theater_id: str,
-                            seat_id: str, seat_number: str, type_seat: str):
+                            seat_number: str, type_seat: str):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex: return False, "Cineplex not found."
         theater = cineplex.search_theater_by_id(theater_id)
         if not theater: return False, "Theater not found."
+        
+        seat_id = f"ST-{self.__seat_counter:04d}"
+        self.__seat_counter += 1
+        
         try:
             theater.add_seat(Seat(seat_id, seat_number, SeatType.from_str(type_seat)))
         except ValueError as e:
             return False, str(e)
-        return True, "Seat created successfully."
+        return True, {"message": "Seat created successfully.", "seat_id": seat_id}
 
-    def process_create_showtime(self, cineplex_id, showtime_id, movie_id, theater_id,
+    def process_create_showtime(self, cineplex_id, movie_id, theater_id,
                                 status, subtitle, start_time, end_time, base_price):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex: return False, "Cineplex not found."
@@ -193,6 +220,10 @@ class JamorCineplex:
         if not movie: return False, "Movie not found."
         theater = cineplex.search_theater_by_id(theater_id)
         if not theater: return False, "Theater not found."
+
+        showtime_id = f"STM-{self.__showtime_counter:04d}"
+        self.__showtime_counter += 1
+        
         if cineplex.search_showtime_by_id(showtime_id): return False, "Showtime ID already exists."
 
         try:
@@ -221,9 +252,9 @@ class JamorCineplex:
                                 dt_start, dt_end, base_price)
         cineplex.add_showtime(new_showtime)
         theater.add_showtime(new_showtime)
-        return True, "Showtime created successfully."
+        return True, {"message": "Showtime created successfully.", "showtime_id": showtime_id}
 
-    def process_create_coupon(self, coupon_type, coupon_id, name, discount=0.0,
+    def process_create_coupon(self, coupon_type, name, discount=0.0,
                               goods_list=None, last_date: str = None):
         dt_last = None
         if last_date:
@@ -232,6 +263,9 @@ class JamorCineplex:
             except ValueError:
                 return False, "Invalid last_date format. Use 'YYYY-MM-DD HH:MM'"
 
+        coupon_id = f"CPN-{self.__coupon_counter:04d}"
+        self.__coupon_counter += 1
+
         if coupon_type.lower() == "discount":
             new_coupon = DiscountCoupon(coupon_id, name, discount, dt_last)
         elif coupon_type.lower() == "exchange":
@@ -239,7 +273,7 @@ class JamorCineplex:
         else:
             return False, "Invalid coupon_type. Use 'discount' or 'exchange'."
         self.__coupon_list.append(new_coupon)
-        return True, "Coupon created successfully."
+        return True, {"message": "Coupon created successfully.", "coupon_id": coupon_id}
 
     # ── booking process ──
 
@@ -256,9 +290,11 @@ class JamorCineplex:
             except ValueError:
                 return False, f"Invalid status. Use: {[s.value for s in BookingStatus]}", None
         return True, "OK", (user, bookings)
+
     def generate(self):
         self.__booking_id += 1
         return self.__booking_id
+
     def process_create_booking(self, user_id: str, cineplex_id: str,
                                showtime_id: str, seat_nos: list):
         user = self.search_user_by_id(user_id)
@@ -267,7 +303,8 @@ class JamorCineplex:
         if not cineplex: return False, "Cineplex not found"
         showtime = cineplex.search_showtime_by_id(showtime_id)
         if not showtime: return False, "Showtime not found"
-        booking_id = self.generate()
+        
+        booking_id = f"BKG-{self.generate():05d}"
         if self.search_booking_by_id(booking_id): return False, "Booking ID already exists"
 
         theater = showtime.theater
@@ -465,6 +502,9 @@ class JamorCineplex:
                     })
         return result
 
+    def process_view_point(self,user_id):
+        user = self.search_user_by_id(user_id)
+
     def process_get_today_showtimes(self):
         """ดูรอบฉายทั้งหมดของวันนี้ (start_time วันเดียวกับ today)"""
         today  = datetime.now().date()
@@ -527,9 +567,6 @@ class JamorCineplex:
     def process_register(self, user_id: str, password: str) -> tuple:
         """
         ลงทะเบียน password ให้ user ที่มีอยู่แล้วในระบบ
-        - user_id ต้องมีอยู่ใน system (สร้างผ่าน register_member ก่อน)
-        - ไม่อนุญาตให้ตั้ง password ซ้ำ (ถ้ามีแล้ว ต้องใช้ change password แทน)
-        - หลัง register สำเร็จ tier จะถูก upgrade เป็น SILVER อัตโนมัติ
         """
         user = self.search_user_by_id(user_id)
         if not user:
@@ -550,8 +587,6 @@ class JamorCineplex:
     def process_login(self, user_id: str, password: str) -> tuple:
         """
         Login ด้วย user_id + password
-        - user ต้อง register (มี password) ก่อน
-        - GUEST ที่ยังไม่ได้ register ไม่สามารถ login ได้
         """
         user = self.search_user_by_id(user_id)
         if not user:
