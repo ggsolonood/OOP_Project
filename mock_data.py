@@ -41,8 +41,3 @@ system.register_member("Ken", "01-01-2000", "U01",  "2023-01-01",
 from enums import MemberTier
 system.search_user_by_id("M001").change_type(MemberTier.GUEST)
 system.search_user_by_id("U01").change_type(MemberTier.GUEST)
-
-# Coupons
-system.process_create_coupon("discount", "C10", "Discount 10", discount=10)
-system.process_create_coupon("discount", "C20", "Discount 20 (limited)", discount=20,
-                             last_date="2026-12-31 23:59")

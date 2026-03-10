@@ -558,7 +558,7 @@ class JamorCineplex:
                 else :
                     return True , "This is your booking history." , booking_list
             else :
-                return True , "You have never made a booking." , None
+                return True , "You have never made a booking." , booking_list
         else :
             return False , "User not found." , None
 
