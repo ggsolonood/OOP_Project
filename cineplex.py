@@ -1,69 +1,96 @@
 from datetime import datetime
+from typing import List, Optional
+from enums import (BookingStatus, MemberTier, OrderStatus, SeatType, TheaterType)
+from payment import Account, Bank, PaymentGateway, Order
+from goods import Goods
+from theater import Seat, Theater, Movie, Showtime, ShowtimeSeat
+from user import Booking, Ticket, User
 
-from enums import BookingStatus, MemberTier, OrderStatus, TheaterType
-from goods import Coupon, DiscountCoupon, ExchangeCoupon, Popcorn, Drinks, Snack
-from payment import Bank, Order, PaymentGateway
-from theater import Movie, Seat, Showtime, Theater
-from user import Booking, Member, Ticket, User
+
+class Coupon:
+    def __init__(self, id: str, name: str, last_date: datetime = None):
+        self.__coupon_id = id
+        self.__name      = name
+        self.__last_date = last_date
+        self._is_used    = False
+
+    @property
+    def id(self) -> str: return self.__coupon_id
+
+    @property
+    def last_date(self) -> Optional[datetime]: return self.__last_date
+
+    def get_coupon_id(self) -> str:   return self.__coupon_id
+    def get_discount(self) -> float:  return 0
+
+    def is_expired(self) -> bool:
+        if self.__last_date is None:
+            return False
+        return datetime.now() > self.__last_date
+
+    def update_status(self, status: str):
+        self._is_used = (status != "Available")
+        return "success"
+
+
+class DiscountCoupon(Coupon):
+    def __init__(self, id: str, name: str, discount: float,
+                 last_date: datetime = None):
+        super().__init__(id, name, last_date)
+        self.__discount = discount
+
+    def get_discount(self) -> float: return self.__discount
+
+
+class ExchangeCoupon(Coupon):
+    def __init__(self, id: str, name: str, goods: list,
+                 last_date: datetime = None):
+        super().__init__(id, name, last_date)
+        self.__list_goods = goods
+
+    def get_goods_list(self) -> list: return self.__list_goods
 
 
 class Cineplex:
-    def __init__(self, cineplex_id, name):
-        self.__cineplex_id = cineplex_id
-        self.__name = name
-        self.__movies_list = []
-        self.__theaters_list = []
-        self.__showtime_list = []
-        self.__goods_list = []
+    def __init__(self, cineplex_id: str, name: str):
+        self.__cineplex_id    = cineplex_id
+        self.__name           = name
+        self.__movies_list:   List[Movie]    = []
+        self.__theaters_list: List[Theater]  = []
+        self.__showtime_list: List[Showtime] = []
+        self.__goods_list:    List[Goods]    = []
 
     @property
-    def id(self):
-        return self.__cineplex_id
-
-    def get_cineplex_name(self):
-        return self.__name
-
+    def id(self) -> str:                       return self.__cineplex_id
     @property
-    def showtime_list(self):
-        return self.__showtime_list
+    def showtime_list(self) -> List[Showtime]: return self.__showtime_list
 
-    def search_movie_by_id(self, movie_id):
+    def get_cineplex_name(self) -> str: return self.__name
+
+    def search_movie_by_id(self, movie_id: str) -> Optional[Movie]:
         for i in self.__movies_list:
-            if i.id == movie_id:
-                return i
+            if i.id == movie_id: return i
         return None
 
-    def search_theater_by_id(self, theater_id):
+    def search_theater_by_id(self, theater_id: str) -> Optional[Theater]:
         for i in self.__theaters_list:
-            if i.id == theater_id:
-                return i
+            if i.id == theater_id: return i
         return None
 
-    def search_showtime_by_id(self, showtime_id):
+    def search_showtime_by_id(self, showtime_id: str) -> Optional[Showtime]:
         for i in self.__showtime_list:
-            if i.id == showtime_id:
-                return i
+            if i.id == showtime_id: return i
         return None
 
-    def add_movie(self, movie):
-        self.__movies_list.append(movie)
+    def add_movie(self, movie: Movie):          self.__movies_list.append(movie)
+    def add_theater(self, theater: Theater):    self.__theaters_list.append(theater)
+    def add_showtime(self, showtime: Showtime): self.__showtime_list.append(showtime)
 
-    def add_theater(self, theater):
-        self.__theaters_list.append(theater)
+    def add_goods(self, name: str, values: int, price: float,
+                  goods_type: str, flavor: str = None):
+        self.__goods_list.append(Goods.create(name, values, price, goods_type, flavor))
 
-    def add_showtime(self, showtime):
-        self.__showtime_list.append(showtime)
-
-    def add_popcorn(self, name, values: int, price, flavor):
-        self.__goods_list.append(Popcorn(name, values, price, flavor))
-
-    def add_drinks(self, name, values: int, price, flavor):
-        self.__goods_list.append(Drinks(name, values, price, flavor))
-
-    def add_snack(self, name, values: int, price):
-        self.__goods_list.append(Snack(name, values, price))
-
-    def search_goods_stock(self, goods_name, amount_needed=0):
+    def search_goods_stock(self, goods_name: str, amount_needed: int = 0) -> Optional[Goods]:
         for item in self.__goods_list:
             if item.get_name() == goods_name:
                 if amount_needed == 0 or item.check_values(amount_needed):
@@ -73,61 +100,53 @@ class Cineplex:
 
 class JamorCineplex:
     def __init__(self, bank: Bank):
-        self.__bank = bank
-        self.__cineplex_list = []
-        self.__user_list = []
-        self.__booking_list = []
-        self.__order_list = []
-        self.__coupon_list = []
-        self.__ticket_list = []
+        self.__bank          = bank
+        self.__cineplex_list: List[Cineplex] = []
+        self.__user_list:     List[User]     = []
+        self.__booking_list:  List[Booking]  = []
+        self.__order_list:    List[Order]    = []
+        self.__coupon_list:   List[Coupon]   = []
+        self.__ticket_list:   List[Ticket]   = []
         self.__order_counter = 1
 
-    def search_cineplex_by_id(self, cineplex_id):
-        for i in self.__cineplex_list:
-            if i.id == cineplex_id:
-                return i
-        return None
-
     @property
-    def cineplex_list(self):
-        return self.__cineplex_list
+    def cineplex_list(self) -> List[Cineplex]: return self.__cineplex_list
 
-    def search_user_by_id(self, user_id):
+    def search_cineplex_by_id(self, cineplex_id: str) -> Optional[Cineplex]:
+        for i in self.__cineplex_list:
+            if i.id == cineplex_id: return i
+        return None
+
+    def search_user_by_id(self, user_id: str) -> Optional[User]:
         for i in self.__user_list:
-            if i.id == user_id:
-                return i
+            if i.id == user_id: return i
         return None
 
-    def search_order_by_id(self, order_id):
+    def search_order_by_id(self, order_id: str) -> Optional[Order]:
         for o in self.__order_list:
-            if o.get_order_id() == order_id:
-                return o
+            if o.get_order_id() == order_id: return o
         return None
 
-    def search_booking_by_id(self, booking_id):
+    def search_booking_by_id(self, booking_id: str) -> Optional[Booking]:
         for b in self.__booking_list:
-            if b.id == booking_id:
-                return b
+            if b.id == booking_id: return b
         return None
 
-    def add_cineplex(self, cineplex: Cineplex):
-        self.__cineplex_list.append(cineplex)
+    def add_cineplex(self, cineplex: Cineplex): self.__cineplex_list.append(cineplex)
+    def add_user(self, user: User):             self.__user_list.append(user)
+    def get_all_users(self) -> List[User]:      return self.__user_list
 
-    def add_user(self, user):
+    def register_member(self, name: str, birthday: str, member_id: str,
+                        registered_date: str, email: str = None,
+                        phone_number: str = None,
+                        tier: MemberTier = MemberTier.SILVER):
+        user = User(member_id, name, email or "", phone_number or "", birthday, "")
+        user.set_tier(tier)
         self.__user_list.append(user)
 
-    def get_all_users(self):
-        return self.__user_list
+    # ── admin process ──
 
-    def register_member(self, name, birthday, member_id, registered_date,
-                        email=None, phone_number=None):
-        self.__user_list.append(
-            Member(name, birthday, member_id, registered_date, email, phone_number)
-        )
-
-    # --- Admin processes ---
-
-    def process_create_cineplex(self, cineplex_id, name):
+    def process_create_cineplex(self, cineplex_id: str, name: str):
         if self.search_cineplex_by_id(cineplex_id):
             return False, "Cineplex ID already exists."
         self.__cineplex_list.append(Cineplex(cineplex_id, name))
@@ -135,66 +154,94 @@ class JamorCineplex:
 
     def process_create_movie(self, cineplex_id, movie_id, name, duration, genre, age_rating):
         cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found."
-        if cineplex.search_movie_by_id(movie_id):
-            return False, "Movie ID already exists in this Cineplex."
+        if not cineplex: return False, "Cineplex not found."
+        if cineplex.search_movie_by_id(movie_id): return False, "Movie ID already exists."
         cineplex.add_movie(Movie(movie_id, name, duration, genre, age_rating))
         return True, "Movie created successfully."
 
-    def process_create_theater(self, cineplex_id, theater_id, type_theater):
+    def process_create_theater(self, cineplex_id: str, theater_id: str, type_theater: str):
         cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found."
-        if cineplex.search_theater_by_id(theater_id):
-            return False, "Theater ID already exists."
-        cineplex.add_theater(Theater(theater_id, type_theater))
+        if not cineplex: return False, "Cineplex not found."
+        if cineplex.search_theater_by_id(theater_id): return False, "Theater ID already exists."
+        try:
+            cineplex.add_theater(Theater.create(theater_id, type_theater))
+        except ValueError as e:
+            return False, str(e)
         return True, "Theater created successfully."
 
-    def process_create_seat(self, cineplex_id, theater_id, seat_id, seat_number, type_seat):
+    def process_create_seat(self, cineplex_id: str, theater_id: str,
+                            seat_id: str, seat_number: str, type_seat: str):
         cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found."
+        if not cineplex: return False, "Cineplex not found."
         theater = cineplex.search_theater_by_id(theater_id)
-        if not theater:
-            return False, "Theater not found."
-        theater.add_seat(Seat(seat_id, seat_number, type_seat))
+        if not theater: return False, "Theater not found."
+        try:
+            theater.add_seat(Seat(seat_id, seat_number, SeatType.from_str(type_seat)))
+        except ValueError as e:
+            return False, str(e)
         return True, "Seat created successfully."
 
     def process_create_showtime(self, cineplex_id, showtime_id, movie_id, theater_id,
-                                 status, subtitle, start_time, end_time, base_price):
+                                status, subtitle, start_time, end_time, base_price):
         cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found."
+        if not cineplex: return False, "Cineplex not found."
         movie = cineplex.search_movie_by_id(movie_id)
-        if not movie:
-            return False, "Movie not found."
+        if not movie: return False, "Movie not found."
         theater = cineplex.search_theater_by_id(theater_id)
-        if not theater:
-            return False, "Theater not found."
-        if cineplex.search_showtime_by_id(showtime_id):
-            return False, "Showtime ID already exists."
-        cineplex.add_showtime(
-            Showtime(showtime_id, movie, theater, status, subtitle, start_time, end_time, base_price)
-        )
+        if not theater: return False, "Theater not found."
+        if cineplex.search_showtime_by_id(showtime_id): return False, "Showtime ID already exists."
+
+        try:
+            dt_start = datetime.strptime(start_time, Showtime.DT_FORMAT)
+            dt_end   = datetime.strptime(end_time,   Showtime.DT_FORMAT)
+        except ValueError:
+            return False, f"Invalid datetime format. Use '{Showtime.DT_FORMAT}' (e.g. '2025-12-31 14:30')"
+
+        if dt_end <= dt_start:
+            return False, "end_time must be after start_time"
+
+        if theater.has_conflict(dt_start, dt_end):
+            conflict = next(
+                st for st in theater.showtime_list
+                if dt_start < st.end_time and dt_end > st.start_time
+            )
+            return False, (
+                f"Time conflict in Theater '{theater_id}': "
+                f"showtime '{conflict.id}' "
+                f"({conflict.start_time.strftime(Showtime.DT_FORMAT)}"
+                f" – {conflict.end_time.strftime(Showtime.DT_FORMAT)}) "
+                f"overlaps with the requested slot."
+            )
+
+        new_showtime = Showtime(showtime_id, movie, theater, status, subtitle,
+                                dt_start, dt_end, base_price)
+        cineplex.add_showtime(new_showtime)
+        theater.add_showtime(new_showtime)
         return True, "Showtime created successfully."
 
-    def process_create_coupon(self, coupon_type, coupon_id, name, discount=0.0, goods_list=None):
+    def process_create_coupon(self, coupon_type, coupon_id, name, discount=0.0,
+                              goods_list=None, last_date: str = None):
+        dt_last = None
+        if last_date:
+            try:
+                dt_last = datetime.strptime(last_date, "%Y-%m-%d %H:%M")
+            except ValueError:
+                return False, "Invalid last_date format. Use 'YYYY-MM-DD HH:MM'"
+
         if coupon_type.lower() == "discount":
-            new_coupon = DiscountCoupon(coupon_id, name, discount)
+            new_coupon = DiscountCoupon(coupon_id, name, discount, dt_last)
         elif coupon_type.lower() == "exchange":
-            new_coupon = ExchangeCoupon(coupon_id, name, goods_list or [])
+            new_coupon = ExchangeCoupon(coupon_id, name, goods_list or [], dt_last)
         else:
             return False, "Invalid coupon_type. Use 'discount' or 'exchange'."
         self.__coupon_list.append(new_coupon)
         return True, "Coupon created successfully."
 
-    # --- Booking processes ---
+    # ── booking process ──
 
     def process_get_booking_history(self, user_id: str, status_filter: str = None):
         user = self.search_user_by_id(user_id)
-        if not user:
-            return False, "Member not found", None
+        if not user: return False, "Member not found", None
         if user.tier == MemberTier.GUEST:
             return False, "Guest members cannot view booking history", None
         bookings = user.booking_list
@@ -206,105 +253,84 @@ class JamorCineplex:
                 return False, f"Invalid status. Use: {[s.value for s in BookingStatus]}", None
         return True, "OK", (user, bookings)
 
-    def process_create_booking(self, booking_id: str, user_id: str, cineplex_id,
-                                showtime_id: str, seat_nos: list):
+    def process_create_booking(self, booking_id: str, user_id: str, cineplex_id: str,
+                               showtime_id: str, seat_nos: list):
         user = self.search_user_by_id(user_id)
-        if not user:
-            return False, "Member not found"
+        if not user: return False, "Member not found"
         cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found"
+        if not cineplex: return False, "Cineplex not found"
         showtime = cineplex.search_showtime_by_id(showtime_id)
-        if not showtime:
-            return False, "Showtime not found"
-        if self.search_booking_by_id(booking_id):
-            return False, "Booking ID already exists"
+        if not showtime: return False, "Showtime not found"
+        if self.search_booking_by_id(booking_id): return False, "Booking ID already exists"
 
         theater = showtime.theater
-        seats = []
+        seats   = []
         for seat_no in seat_nos:
             if not showtime.is_seat_available(seat_no):
                 return False, f"Seat {seat_no} is already booked"
             seat = theater.search_seat_by_no(seat_no)
-            if not seat:
-                return False, f"Seat {seat_no} not found in theater"
+            if not seat: return False, f"Seat {seat_no} not found in theater"
             seats.append(seat)
 
-        base_price = showtime.base_price
-        seat_total = sum(s.type_seat.get_price() for s in seats)
-        raw_total = base_price + seat_total
-        discount = user.get_discount()
+        seat_total  = sum(s.type_seat.get_price() for s in seats)
+        raw_total   = showtime.base_price + seat_total
+        discount    = user.get_discount()
         total_price = round(raw_total * (1 - discount), 2)
 
         booking = Booking(booking_id, user, showtime, datetime.now(),
                           BookingStatus.PENDING, total_price)
-        booked_seats = showtime.add_seats(seats, BookingStatus.PENDING)
-        booking.showtime_seat = booked_seats
+        booking.showtime_seat = showtime.add_seats(seats, BookingStatus.PENDING)
         self.__booking_list.append(booking)
         user.add_booking(booking)
-
         return True, {
-            "booking_id": booking_id,
-            "seats": seat_nos,
+            "booking_id":  booking_id,
+            "seats":       seat_nos,
             "total_price": total_price,
-            "discount": int(discount * 100),
+            "discount":    int(discount * 100),
         }
 
     def process_cancel_booking(self, booking_id: str, user_id: str):
-        user = self.search_user_by_id(user_id)
-        if not user:
-            return False, "Member not found"
+        user    = self.search_user_by_id(user_id)
+        if not user: return False, "Member not found"
         booking = self.search_booking_by_id(booking_id)
-        if not booking:
-            return False, "Booking not found"
-        if booking.status == BookingStatus.CANCELLED:
-            return False, "Booking is already cancelled"
-        if booking.status == BookingStatus.COMPLETED:
-            return False, "Cannot cancel a completed booking"
-
-        seat_nos = [s.seat_number for s in booking.showtime_seat]
-        booking.showtime.remove_seats(seat_nos)
+        if not booking: return False, "Booking not found"
+        if booking.status == BookingStatus.CANCELLED: return False, "Booking is already cancelled"
+        if booking.status == BookingStatus.COMPLETED: return False, "Cannot cancel a completed booking"
+        booking.showtime.remove_seats([s.seat_number for s in booking.showtime_seat])
         booking.status = BookingStatus.CANCELLED
         return True, f"Booking {booking_id} cancelled (no refund)"
 
     def process_confirm_booking(self, booking_id: str, user_id: str, account_id: str):
-        user = self.search_user_by_id(user_id)
-        if not user:
-            return False, "Member not found"
+        user    = self.search_user_by_id(user_id)
+        if not user: return False, "Member not found"
         booking = self.search_booking_by_id(booking_id)
-        if not booking:
-            return False, "Booking not found"
+        if not booking: return False, "Booking not found"
         if booking.status != BookingStatus.PENDING:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
-        total = booking.total_price
-        gateway = PaymentGateway(account_id, total)
-        result = gateway.pay(self.__bank)
+        total  = booking.total_price
+        result = PaymentGateway(account_id, total).pay(self.__bank)
+        if not result: return False, "Failed: Insufficient balance"
 
-        if result is True:
-            booking.status = BookingStatus.CONFIRMED
-            showtime = booking.showtime
-            ticket = Ticket(
-                booking=booking, cineplex=None, user=user,
-                movie=showtime.movie, theater=showtime.theater,
-                showtime=showtime, seat_list=booking.showtime_seat,
-            )
-            booking.ticket = ticket
-            user.add_ticket(ticket)
-            self.__ticket_list.append(ticket)
-            points_earned = len(booking.showtime_seat) * 10
-            user.add_point(points_earned)
-            return True, f"Confirm booking success | Total Paid: {total} THB | Points earned: {points_earned}"
-        else:
-            return False, "Failed: Insufficient balance"
+        booking.status = BookingStatus.CONFIRMED
+        showtime = booking.showtime
+        ticket = Ticket(
+            booking=booking, cineplex=None, user=user,
+            movie=showtime.movie, theater=showtime.theater,
+            showtime=showtime, seat_list=booking.showtime_seat,
+        )
+        booking.ticket = ticket
+        user.add_ticket(ticket)
+        self.__ticket_list.append(ticket)
+        points = len(booking.showtime_seat) * 10
+        user.add_point(points)
+        return True, f"Confirm booking success | Total Paid: {total} THB | Points earned: {points}"
 
     def process_change_booking(self, user_id: str, booking_id: str, new_seat_nos: list):
-        user = self.search_user_by_id(user_id)
-        if not user:
-            return None, "User not found"
+        user    = self.search_user_by_id(user_id)
+        if not user: return None, "User not found"
         booking = user.search_booking_by_id(booking_id)
-        if not booking:
-            return None, "Booking not found"
+        if not booking: return None, "Booking not found"
 
         current_seats = [s.seat_number for s in booking.showtime_seat]
         if len(new_seat_nos) != len(current_seats):
@@ -312,97 +338,89 @@ class JamorCineplex:
         if len(new_seat_nos) != len(set(new_seat_nos)):
             return None, "Validation Error: Duplicate seats requested"
 
-        showtime = booking.showtime
-        theater = showtime.theater
+        showtime       = booking.showtime
+        theater        = showtime.theater
         booking_status = booking.status
-        old_total_price = booking.total_price
+        old_total      = booking.total_price
         new_real_seats = []
-        new_total_price = 0.0
+        new_total      = 0.0
 
         for seat_no in new_seat_nos:
             if seat_no not in current_seats:
                 if not showtime.is_seat_available(seat_no):
                     return None, f"Seat {seat_no} is already booked"
             seat = theater.search_seat_by_no(seat_no)
-            if not seat:
-                return None, f"Seat {seat_no} not found in theater"
-            new_total_price += seat.type_seat.get_price()
+            if not seat: return None, f"Seat {seat_no} not found in theater"
+            new_total += seat.type_seat.get_price()
             new_real_seats.append(seat)
 
-        discount = user.get_discount()
-        new_total_price = round(new_total_price * (1 - discount), 2)
+        new_total = round(new_total * (1 - user.get_discount()), 2)
 
         if booking_status == BookingStatus.CONFIRMED:
-            if new_total_price > old_total_price:
-                return None, "Cannot change to more expensive seats"
+            if new_total > old_total: return None, "Cannot change to more expensive seats"
             showtime.remove_seats(current_seats)
-            new_st_seats = showtime.add_seats(new_real_seats, BookingStatus.CONFIRMED)
-            booking.showtime_seat = new_st_seats
-            booking.total_price = new_total_price
-            if booking.ticket:
-                booking.ticket.seat_list = new_st_seats
+            new_st = showtime.add_seats(new_real_seats, BookingStatus.CONFIRMED)
+            booking.showtime_seat = new_st
+            booking.total_price   = new_total
+            if booking.ticket: booking.ticket.seat_list = new_st
             return booking, "Change booking (Confirmed) successful"
 
         elif booking_status == BookingStatus.PENDING:
             showtime.remove_seats(current_seats)
-            new_st_seats = showtime.add_seats(new_real_seats, BookingStatus.PENDING)
-            booking.showtime_seat = new_st_seats
-            booking.total_price = new_total_price
+            new_st = showtime.add_seats(new_real_seats, BookingStatus.PENDING)
+            booking.showtime_seat = new_st
+            booking.total_price   = new_total
             return booking, "Change booking (Pending) successful"
 
         return None, "Invalid booking status"
 
-    # --- Order processes ---
+    # ── order process ──
 
     def process_order_goods(self, cineplex_id, goods_name, values, user_id,
-                             account_id, coupon_id=None):
+                            account_id, coupon_id=None):
         member = self.search_user_by_id(user_id)
-        if not member:
-            return False, "Member not found"
+        if not member: return False, "Member not found"
         cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found"
+        if not cineplex: return False, "Cineplex not found"
         target_good = cineplex.search_goods_stock(goods_name, values)
-        if not target_good:
-            return False, "Out of stock or Not enough items"
+        if not target_good: return False, "Out of stock or Not enough items"
 
         discount_amount = 0
-        used_coupon_id = None
+        used_coupon_id  = None
         if coupon_id:
             for c in self.__coupon_list:
                 if c.get_coupon_id() == coupon_id:
+                    if c.is_expired():
+                        last = c.last_date.strftime("%Y-%m-%d %H:%M") if c.last_date else "-"
+                        return False, f"Coupon '{coupon_id}' has expired (last_date: {last})"
                     discount_amount = c.get_discount()
-                    used_coupon_id = coupon_id
+                    used_coupon_id  = coupon_id
                     c.update_status("Used")
                     break
+            else:
+                return False, f"Coupon '{coupon_id}' not found"
 
         total_price = max((target_good.get_price() * values) - discount_amount, 0)
-        order_id = f"ORD-{self.__order_counter:04d}"
+        order_id    = f"ORD-{self.__order_counter:04d}"
         self.__order_counter += 1
 
-        order = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
+        order   = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
         gateway = PaymentGateway(account_id, total_price)
-
         if order.pay(self.__bank, gateway):
             target_good.clearstock(values)
             self.__order_list.append(order)
             return True, {"order_id": order_id, "total_paid": total_price}
-        else:
-            return False, "Payment failed: Insufficient balance or invalid account."
+        return False, "Payment failed: Insufficient balance or invalid account."
 
     def process_cancel_order(self, cineplex_id, order_id, user_id):
         member = self.search_user_by_id(user_id)
-        if not member:
-            return False, "Member not found"
-        order = self.search_order_by_id(order_id)
-        if not order:
-            return False, "Order not found"
+        if not member: return False, "Member not found"
+        order  = self.search_order_by_id(order_id)
+        if not order: return False, "Order not found"
 
         current_status = order.get_status()
-        if current_status == OrderStatus.CANCELLED.value:
-            return False, "Order is already cancelled"
-        if current_status == OrderStatus.REFUNDED.value:
-            return False, "Order has already been refunded"
+        if current_status == OrderStatus.CANCELLED.value: return False, "Order is already cancelled"
+        if current_status == OrderStatus.REFUNDED.value:  return False, "Order has already been refunded"
 
         if current_status == OrderStatus.COMPLETED.value:
             account_id, total_paid = order.get_payment_details()
@@ -410,17 +428,15 @@ class JamorCineplex:
                 goods_name, values = order.get_items()
                 cineplex = self.search_cineplex_by_id(cineplex_id)
                 if cineplex:
-                    target_good = cineplex.search_goods_stock(goods_name)
-                    if target_good:
-                        target_good.restore_stock(values)
-                coupon_id = order.get_used_coupon()
-                if coupon_id:
+                    g = cineplex.search_goods_stock(goods_name)
+                    if g: g.restore_stock(values)
+                cid = order.get_used_coupon()
+                if cid:
                     for c in self.__coupon_list:
-                        if c.get_coupon_id() == coupon_id:
+                        if c.get_coupon_id() == cid:
                             c.update_status("Available")
                             break
                 order.update_status(OrderStatus.CANCELLED)
                 return True, f"Cancel success, Refund {total_paid} THB"
-            else:
-                return False, "Refund failed"
+            return False, "Refund failed"
         return False, "Cannot cancel order with current status"
