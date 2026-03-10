@@ -63,11 +63,15 @@ class Movie:
         self.__duration   = duration
         self.__genre      = genre
         self.__age_rating = age_rating
+        self.__review_list = []
 
     @property
     def id(self) -> str:   return self.__movie_id
     @property
     def name(self) -> str: return self.__movie_name
+
+    def add_reiew(self,review) :
+        self.__review_list.append(review)
 
 
 class ShowtimeSeat(Seat):
@@ -133,3 +137,13 @@ class Showtime:
             self.__showtime_seat.append(st_seat)
             new_seats.append(st_seat)
         return new_seats
+
+class Review :
+    def __init__(self,star,comment,author):
+        self.__star = star
+        self.__comment = comment
+        self.__author = author
+
+    @property
+    def read(self) :
+        return f"{self.__author} {self.__star} ⭐\n\t{self.__comment}"
