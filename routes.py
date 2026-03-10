@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from theater import Showtime
 from enums import BookingStatus
+from schemas import CouponCreate, BookingCreate, BookingChangeSeats
 
 admin_router   = APIRouter(prefix="/admin",   tags=["Cinema Management"])
 store_router   = APIRouter(prefix="/store",   tags=["Store"])
@@ -21,47 +22,26 @@ def get_system():
 
 @movie_router.get("/")
 def get_all_movies():
-    """
-    ดูหนังทั้งหมดในระบบ
-    - รวมทุก cineplex, ไม่ซ้ำ movie_id
-    """
+    """ดูหนังทั้งหมดในระบบ — รวมทุก cineplex, ไม่ซ้ำ movie_id"""
     result = get_system().process_get_all_movies()
-    return {
-        "total": len(result),
-        "movies": result,
-    }
+    return {"total": len(result), "movies": result}
 
 
 @movie_router.get("/showtimes/today")
 def get_today_showtimes():
-    """
-    ดูรอบฉายวันนี้ทั้งหมด
-    - กรองเฉพาะ showtime ที่ start_time เป็นวันเดียวกับวันนี้
-    """
+    """ดูรอบฉายวันนี้ทั้งหมด"""
     result = get_system().process_get_today_showtimes()
     today  = datetime.now().strftime("%Y-%m-%d")
-    return {
-        "date":   today,
-        "total":  len(result),
-        "showtimes": result,
-    }
+    return {"date": today, "total": len(result), "showtimes": result}
 
 
 @movie_router.get("/showtimes/search")
 def get_showtimes_by_movie_name(movie_name: str = Query(..., description="ชื่อหนัง (บางส่วนก็ได้)")):
-    """
-    ดูรอบฉายตามชื่อหนัง
-    - รองรับ partial match และ case-insensitive
-    - เช่น `?movie_name=matrix` จะเจอ "The Matrix"
-    """
+    """ดูรอบฉายตามชื่อหนัง — partial match, case-insensitive"""
     result = get_system().process_get_showtimes_by_movie_name(movie_name)
     if not result:
         raise HTTPException(status_code=404, detail=f"ไม่พบรอบฉายของหนัง '{movie_name}'")
-    return {
-        "search":    movie_name,
-        "total":     len(result),
-        "showtimes": result,
-    }
+    return {"search": movie_name, "total": len(result), "showtimes": result}
 
 
 ## ── ROUTES_ADMIN ──────────────────────────────────────────────────────────
@@ -101,10 +81,7 @@ def create_seat(cineplex_id: str, theater_id: str, seat_id: str,
 @admin_router.post("/showtime/")
 def create_showtime(cineplex_id: str, showtime_id: str, movie_id: str, theater_id: str,
                     status: str, subtitle: str, start_time: str, end_time: str, base_price: float):
-    """
-    **start_time / end_time** format: `YYYY-MM-DD HH:MM`  เช่น `2026-03-10 14:30`
-    ระบบเช็ค time conflict อัตโนมัติ
-    """
+    """**start_time / end_time** format: `YYYY-MM-DD HH:MM` — ระบบเช็ค time conflict อัตโนมัติ"""
     success, msg = get_system().process_create_showtime(
         cineplex_id, showtime_id, movie_id, theater_id,
         status, subtitle, start_time, end_time, base_price,
@@ -114,13 +91,25 @@ def create_showtime(cineplex_id: str, showtime_id: str, movie_id: str, theater_i
 
 
 @admin_router.post("/coupon/")
-def create_coupon(coupon_type: str, coupon_id: str, name: str,
-                  discount: float = 0.0,
-                  goods_list: List[str] = Query(default=[]),
-                  last_date: Optional[str] = None):
-    """**last_date** format: `YYYY-MM-DD HH:MM`  ละไว้ = ไม่มีวันหมดอายุ"""
-    success, msg = get_system().process_create_coupon(coupon_type, coupon_id, name, discount,
-                                                      goods_list, last_date)
+def create_coupon(body: CouponCreate):
+    """
+    **last_date** format: `YYYY-MM-DD HH:MM`  ละไว้ = ไม่มีวันหมดอายุ
+
+    ```json
+    {
+      "coupon_type": "discount",
+      "coupon_id":   "C30",
+      "name":        "Discount 30",
+      "discount":    30.0,
+      "goods_list":  [],
+      "last_date":   null
+    }
+    ```
+    """
+    success, msg = get_system().process_create_coupon(
+        body.coupon_type, body.coupon_id, body.name,
+        body.discount, body.goods_list, body.last_date,
+    )
     if not success: raise HTTPException(status_code=400, detail=msg)
     return {"message": msg}
 
@@ -171,10 +160,21 @@ def cancel_order(cineplex_id: str, order_id: str, user_id: str):
 ## ── ROUTES_BOOKING ────────────────────────────────────────────────────────
 
 @booking_router.post("/")
-def create_booking(booking_id: str, user_id: str, cineplex_id: str, showtime_id: str,
-                   seat_nos: List[str] = Query(..., description="รายการที่นั่ง เช่น A1, A2")):
-    success, msg = get_system().process_create_booking(booking_id, user_id, cineplex_id,
-                                                       showtime_id, seat_nos)
+def create_booking(body: BookingCreate):
+    """
+    ```json
+    {
+      "user_id":     "U01",
+      "cineplex_id": "CPX01",
+      "showtime_id": "ST01",
+      "seat_nos":    ["B1", "B2"]
+    }
+    ```
+    """
+    success, msg = get_system().process_create_booking(
+        body.user_id, body.cineplex_id,
+        body.showtime_id, body.seat_nos,
+    )
     if not success: raise HTTPException(status_code=400, detail=msg)
     return {"message": "Booking created", "data": msg}
 
@@ -194,9 +194,16 @@ def cancel_booking(booking_id: str, user_id: str):
 
 
 @booking_router.put("/{booking_id}/seats")
-def change_booking_seats(booking_id: str, user_id: str,
-                         new_seat_nos: List[str] = Query(...)):
-    booking, msg = get_system().process_change_booking(user_id, booking_id, new_seat_nos)
+def change_booking_seats(booking_id: str, body: BookingChangeSeats):
+    """
+    ```json
+    {
+      "user_id":      "U01",
+      "new_seat_nos": ["A1", "B1"]
+    }
+    ```
+    """
+    booking, msg = get_system().process_change_booking(body.user_id, booking_id, body.new_seat_nos)
     if not booking: raise HTTPException(status_code=400, detail=msg)
     return {
         "message":     msg,
@@ -232,11 +239,21 @@ def get_user_bookings(user_id: str, status_filter: Optional[str] = None):
     } for b in bookings]
     return {"member": user.name, "tier": user.tier.value, "bookings": result}
 
+
 @user_router.get("/{user_id}/history_booking")
 def view_booking_history(user_id: str):
-    success , msg , booking_history = get_system().process_view_booking_history(user_id)
-    if not success : raise HTTPException(status_code=400 , detail=msg)
-    return {"massage":msg,"booking history":booking_history}
+    success, msg, booking_history = get_system().process_view_booking_history(user_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    booking_history_data = [{
+        "booking_id": b.id,
+        "movie":      b.showtime.movie.name,
+        "status":     b.status.value,
+        "seats":      [s.seat_number for s in b.showtime_seat],
+        "price":      b.total_price,
+    } for b in booking_history]
+    return {"message": msg, "booking_history": booking_history_data}
+
 
 ## ── ROUTES_AUTH ───────────────────────────────────────────────────────────
 
@@ -269,13 +286,3 @@ def login(user_id: str, password: str):
     if not success:
         raise HTTPException(status_code=401, detail=result)
     return result
-    booking_history_data = []
-    for b in booking_history :
-        booking_history_data.append({
-            "booking_id": b.id,
-            "movie":      b.showtime.movie.name,
-            "status":     b.status.value,
-            "seats":      [s.seat_number for s in b.showtime_seat],
-            "price":      b.total_price,
-        })
-    return {"message":msg,"booking history":booking_history_data}

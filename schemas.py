@@ -54,7 +54,6 @@ class OrderGoodsRequest(BaseModel):
     coupon_id: Optional[str] = None
 
 class BookingCreate(BaseModel):
-    booking_id: str
     user_id: str
     cineplex_id: str
     showtime_id: str

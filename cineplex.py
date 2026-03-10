@@ -109,9 +109,12 @@ class JamorCineplex:
         self.__coupon_list:   List[Coupon]   = []
         self.__ticket_list:   List[Ticket]   = []
         self.__order_counter = 1
+        self.__booking_id = 0
 
     @property
     def cineplex_list(self) -> List[Cineplex]: return self.__cineplex_list
+    @property
+    def booking_id(self): return self.__booking_id
 
     def search_cineplex_by_id(self, cineplex_id: str) -> Optional[Cineplex]:
         for i in self.__cineplex_list:
@@ -253,8 +256,10 @@ class JamorCineplex:
             except ValueError:
                 return False, f"Invalid status. Use: {[s.value for s in BookingStatus]}", None
         return True, "OK", (user, bookings)
-
-    def process_create_booking(self, booking_id: str, user_id: str, cineplex_id: str,
+    def generate(self):
+        self.__booking_id += 1
+        return self.__booking_id
+    def process_create_booking(self, user_id: str, cineplex_id: str,
                                showtime_id: str, seat_nos: list):
         user = self.search_user_by_id(user_id)
         if not user: return False, "Member not found"
@@ -262,6 +267,7 @@ class JamorCineplex:
         if not cineplex: return False, "Cineplex not found"
         showtime = cineplex.search_showtime_by_id(showtime_id)
         if not showtime: return False, "Showtime not found"
+        booking_id = self.generate()
         if self.search_booking_by_id(booking_id): return False, "Booking ID already exists"
 
         theater = showtime.theater
