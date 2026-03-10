@@ -502,3 +502,17 @@ class JamorCineplex:
                         "status":        showtime.status,
                     })
         return result
+    
+    def process_view_booking_history(self,user_id) :
+        user = self.search_user_by_id(user_id)
+        if user :
+            booking_list = user.booking_list
+            if booking_list :
+                if user.tier.value == MemberTier.GUEST.value :
+                    return True , "This is your booking history." , booking_list
+                else :
+                    return True , "This is your booking history." , booking_list
+            else :
+                return True , "You have never made a booking." , None
+        else :
+            return False , "User not found." , None

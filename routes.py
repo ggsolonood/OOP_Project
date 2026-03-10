@@ -231,3 +231,9 @@ def get_user_bookings(user_id: str, status_filter: Optional[str] = None):
         "price":      b.total_price,
     } for b in bookings]
     return {"member": user.name, "tier": user.tier.value, "bookings": result}
+
+@user_router.get("/{user_id}/history_booking")
+def view_booking_history(user_id: str):
+    success , msg , booking_history = get_system().process_view_booking_history(user_id)
+    if not success : raise HTTPException(status_code=400 , detail=msg)
+    return {"massage":msg,"booking history":booking_history}
