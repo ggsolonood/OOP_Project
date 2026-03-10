@@ -231,3 +231,36 @@ def get_user_bookings(user_id: str, status_filter: Optional[str] = None):
         "price":      b.total_price,
     } for b in bookings]
     return {"member": user.name, "tier": user.tier.value, "bookings": result}
+
+
+## ── ROUTES_AUTH ───────────────────────────────────────────────────────────
+
+@user_router.post("/register")
+def register(user_id: str, password: str):
+    """
+    ลงทะเบียน password ให้ user ที่มีอยู่ในระบบ
+
+    - **user_id**: ID ของ user ที่ถูกสร้างโดย admin แล้ว
+    - **password**: รหัสผ่าน (อย่างน้อย 4 ตัวอักษร)
+    - หลัง register สำเร็จ tier จะถูก upgrade เป็น **Silver** อัตโนมัติ
+    - ถ้า register แล้ว จะไม่สามารถ register ซ้ำได้
+    """
+    success, result = get_system().process_register(user_id, password)
+    if not success:
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@user_router.post("/login")
+def login(user_id: str, password: str):
+    """
+    เข้าสู่ระบบด้วย user_id และ password
+
+    - **user_id**: ID ของ user
+    - **password**: รหัสผ่านที่ตั้งไว้ตอน register
+    - GUEST ที่ยังไม่ register จะ login ไม่ได้
+    """
+    success, result = get_system().process_login(user_id, password)
+    if not success:
+        raise HTTPException(status_code=401, detail=result)
+    return result
