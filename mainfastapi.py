@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import admin_router, store_router, booking_router, user_router
+from routes import admin_router, store_router, booking_router, user_router, movie_router
 import uvicorn
 
 app = FastAPI(
@@ -8,6 +8,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.include_router(movie_router)
 app.include_router(admin_router)
 app.include_router(store_router)
 app.include_router(booking_router)

@@ -9,11 +9,59 @@ admin_router   = APIRouter(prefix="/admin",   tags=["Cinema Management"])
 store_router   = APIRouter(prefix="/store",   tags=["Store"])
 booking_router = APIRouter(prefix="/booking", tags=["Booking"])
 user_router    = APIRouter(prefix="/users",   tags=["Users"])
+movie_router   = APIRouter(prefix="/movies",  tags=["Movies"])
 
 
 def get_system():
     from mock_data import system
     return system
+
+
+## ── ROUTES_MOVIES ─────────────────────────────────────────────────────────
+
+@movie_router.get("/")
+def get_all_movies():
+    """
+    ดูหนังทั้งหมดในระบบ
+    - รวมทุก cineplex, ไม่ซ้ำ movie_id
+    """
+    result = get_system().process_get_all_movies()
+    return {
+        "total": len(result),
+        "movies": result,
+    }
+
+
+@movie_router.get("/showtimes/today")
+def get_today_showtimes():
+    """
+    ดูรอบฉายวันนี้ทั้งหมด
+    - กรองเฉพาะ showtime ที่ start_time เป็นวันเดียวกับวันนี้
+    """
+    result = get_system().process_get_today_showtimes()
+    today  = datetime.now().strftime("%Y-%m-%d")
+    return {
+        "date":   today,
+        "total":  len(result),
+        "showtimes": result,
+    }
+
+
+@movie_router.get("/showtimes/search")
+def get_showtimes_by_movie_name(movie_name: str = Query(..., description="ชื่อหนัง (บางส่วนก็ได้)")):
+    """
+    ดูรอบฉายตามชื่อหนัง
+    - รองรับ partial match และ case-insensitive
+    - เช่น `?movie_name=matrix` จะเจอ "The Matrix"
+    """
+    result = get_system().process_get_showtimes_by_movie_name(movie_name)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"ไม่พบรอบฉายของหนัง '{movie_name}'")
+    return {
+        "search":    movie_name,
+        "total":     len(result),
+        "showtimes": result,
+    }
 
 
 ## ── ROUTES_ADMIN ──────────────────────────────────────────────────────────

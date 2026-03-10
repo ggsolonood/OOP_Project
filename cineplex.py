@@ -64,6 +64,8 @@ class Cineplex:
     def id(self) -> str:                       return self.__cineplex_id
     @property
     def showtime_list(self) -> List[Showtime]: return self.__showtime_list
+    @property
+    def movies_list(self) -> List[Movie]:      return self.__movies_list
 
     def get_cineplex_name(self) -> str: return self.__name
 
@@ -440,3 +442,63 @@ class JamorCineplex:
                 return True, f"Cancel success, Refund {total_paid} THB"
             return False, "Refund failed"
         return False, "Cannot cancel order with current status"
+
+    # ── movie / showtime query ──
+
+    def process_get_all_movies(self):
+        """ดูหนังทั้งหมดในทุก cineplex (ไม่ซ้ำ movie_id)"""
+        seen = set()
+        result = []
+        for cineplex in self.__cineplex_list:
+            for movie in cineplex.movies_list:
+                if movie.id not in seen:
+                    seen.add(movie.id)
+                    result.append({
+                        "movie_id":  movie.id,
+                        "name":      movie.name,
+                        "cineplex":  cineplex.get_cineplex_name(),
+                    })
+        return result
+
+    def process_get_today_showtimes(self):
+        """ดูรอบฉายทั้งหมดของวันนี้ (start_time วันเดียวกับ today)"""
+        today  = datetime.now().date()
+        result = []
+        for cineplex in self.__cineplex_list:
+            for showtime in cineplex.showtime_list:
+                if showtime.start_time.date() == today:
+                    result.append({
+                        "cineplex_name": cineplex.get_cineplex_name(),
+                        "showtime_id":   showtime.id,
+                        "movie_name":    showtime.movie.name,
+                        "theater_id":    showtime.theater.id,
+                        "theater_type":  showtime.theater.type_theater.value,
+                        "subtitle":      showtime.subtitle,
+                        "start_time":    showtime.start_time.strftime(Showtime.DT_FORMAT),
+                        "end_time":      showtime.end_time.strftime(Showtime.DT_FORMAT),
+                        "base_price":    showtime.base_price,
+                        "status":        showtime.status,
+                    })
+        return result
+
+    def process_get_showtimes_by_movie_name(self, movie_name: str):
+        """ดูรอบฉายทั้งหมดของหนังที่ชื่อตรงกัน (case-insensitive, partial match)"""
+        keyword = movie_name.strip().lower()
+        result  = []
+        for cineplex in self.__cineplex_list:
+            for showtime in cineplex.showtime_list:
+                if keyword in showtime.movie.name.lower():
+                    result.append({
+                        "cineplex_name": cineplex.get_cineplex_name(),
+                        "showtime_id":   showtime.id,
+                        "movie_id":      showtime.movie.id,
+                        "movie_name":    showtime.movie.name,
+                        "theater_id":    showtime.theater.id,
+                        "theater_type":  showtime.theater.type_theater.value,
+                        "subtitle":      showtime.subtitle,
+                        "start_time":    showtime.start_time.strftime(Showtime.DT_FORMAT),
+                        "end_time":      showtime.end_time.strftime(Showtime.DT_FORMAT),
+                        "base_price":    showtime.base_price,
+                        "status":        showtime.status,
+                    })
+        return result
