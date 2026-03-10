@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from enums import (BookingStatus, MemberTier, OrderStatus, SeatType, TheaterType)
-from payment import Account, Bank, PaymentGateway, Order
+from payment import PaymentGateway, Order
 from goods import Goods
 from theater import Seat, Theater, Movie, Showtime, ShowtimeSeat
 from user import Booking, Ticket, User
@@ -101,8 +101,7 @@ class Cineplex:
 
 
 class JamorCineplex:
-    def __init__(self, bank: Bank):
-        self.__bank          = bank
+    def __init__(self):
         self.__cineplex_list: List[Cineplex] = []
         self.__user_list:     List[User]     = []
         self.__booking_list:  List[Booking]  = []
@@ -311,7 +310,7 @@ class JamorCineplex:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
         total  = booking.total_price
-        result = PaymentGateway(account_id, total).pay(self.__bank)
+        result = PaymentGateway(account_id, total).pay_direct()
         if not result: return False, "Failed: Insufficient balance"
 
         booking.status = BookingStatus.CONFIRMED
@@ -408,7 +407,7 @@ class JamorCineplex:
 
         order   = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
         gateway = PaymentGateway(account_id, total_price)
-        if order.pay(self.__bank, gateway):
+        if gateway.pay_direct():
             target_good.clearstock(values)
             self.__order_list.append(order)
             return True, {"order_id": order_id, "total_paid": total_price}
@@ -426,7 +425,7 @@ class JamorCineplex:
 
         if current_status == OrderStatus.COMPLETED.value:
             account_id, total_paid = order.get_payment_details()
-            if self.__bank.refund(account_id, total_paid):
+            if True:  # refund always succeeds (no bank)
                 goods_name, values = order.get_items()
                 cineplex = self.search_cineplex_by_id(cineplex_id)
                 if cineplex:
@@ -516,3 +515,49 @@ class JamorCineplex:
                 return True , "You have never made a booking." , None
         else :
             return False , "User not found." , None
+
+    # ── auth process ──
+
+    def process_register(self, user_id: str, password: str) -> tuple:
+        """
+        ลงทะเบียน password ให้ user ที่มีอยู่แล้วในระบบ
+        - user_id ต้องมีอยู่ใน system (สร้างผ่าน register_member ก่อน)
+        - ไม่อนุญาตให้ตั้ง password ซ้ำ (ถ้ามีแล้ว ต้องใช้ change password แทน)
+        - หลัง register สำเร็จ tier จะถูก upgrade เป็น SILVER อัตโนมัติ
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found"
+        if user.has_password():
+            return False, "User already registered. Use change password instead."
+        if not password or len(password) < 4:
+            return False, "Password must be at least 4 characters"
+        user.add_password(password)
+        user.change_type(MemberTier.SILVER)
+        return True, {
+            "user_id": user_id,
+            "name":    user.name,
+            "tier":    user.tier.value,
+            "message": "Register successful",
+        }
+
+    def process_login(self, user_id: str, password: str) -> tuple:
+        """
+        Login ด้วย user_id + password
+        - user ต้อง register (มี password) ก่อน
+        - GUEST ที่ยังไม่ได้ register ไม่สามารถ login ได้
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found"
+        if not user.has_password():
+            return False, "User has not registered yet. Please register first."
+        if not user.check_password(password):
+            return False, "Incorrect password"
+        return True, {
+            "user_id": user_id,
+            "name":    user.name,
+            "tier":    user.tier.value,
+            "points":  user.get_point(),
+            "message": "Login successful",
+        }

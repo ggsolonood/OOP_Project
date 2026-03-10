@@ -91,3 +91,7 @@ class Order:
 
     def pay(self, bank: Bank, gateway: PaymentGateway) -> bool:
         return gateway.pay(bank)
+
+    def pay_direct(self) -> bool:
+        """จ่ายเงินโดยไม่ผ่าน Bank — คืน True เสมอ (สำหรับระบบที่ไม่มี Bank)"""
+        return True

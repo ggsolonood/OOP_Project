@@ -83,6 +83,22 @@ class User:
     def add_booking(self, b: Booking): self.__booking_list.append(b)
     def add_ticket(self, t: Ticket):   self.__ticket_list.append(t)
 
+    def add_password(self, password: str):
+        """ตั้ง/เปลี่ยน password"""
+        self.__password = password
+
+    def check_password(self, password: str) -> bool:
+        """ตรวจสอบ password — True ถ้าตรง"""
+        return self.__password == password
+
+    def has_password(self) -> bool:
+        """True ถ้ามี password ตั้งไว้แล้ว"""
+        return bool(self.__password)
+
+    def change_type(self, tier: MemberTier):
+        """เปลี่ยน tier โดยตรง (alias ของ set_tier)"""
+        self.__type_user = tier
+
     def set_tier(self, tier: MemberTier):
         self.__type_user = tier
 
