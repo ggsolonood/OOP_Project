@@ -236,4 +236,13 @@ def get_user_bookings(user_id: str, status_filter: Optional[str] = None):
 def view_booking_history(user_id: str):
     success , msg , booking_history = get_system().process_view_booking_history(user_id)
     if not success : raise HTTPException(status_code=400 , detail=msg)
-    return {"massage":msg,"booking history":booking_history}
+    booking_history_data = []
+    for b in booking_history :
+        booking_history_data.append({
+            "booking_id": b.id,
+            "movie":      b.showtime.movie.name,
+            "status":     b.status.value,
+            "seats":      [s.seat_number for s in b.showtime_seat],
+            "price":      b.total_price,
+        })
+    return {"message":msg,"booking history":booking_history_data}
