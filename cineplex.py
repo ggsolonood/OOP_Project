@@ -23,6 +23,10 @@ class Cineplex:
     def get_cineplex_name(self):
         return self.__name
 
+    @property
+    def showtime_list(self):
+        return self.__showtime_list
+
     def search_movie_by_id(self, movie_id):
         for i in self.__movies_list:
             if i.id == movie_id:
@@ -83,6 +87,10 @@ class JamorCineplex:
             if i.id == cineplex_id:
                 return i
         return None
+
+    @property
+    def cineplex_list(self):
+        return self.__cineplex_list
 
     def search_user_by_id(self, user_id):
         for i in self.__user_list:

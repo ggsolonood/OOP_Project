@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -72,6 +73,36 @@ def create_coupon(coupon_type: str, coupon_id: str, name: str,
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return {"message": msg}
+
+
+@admin_router.get("/showtimes/")
+def get_all_showtimes():
+    current_time = datetime.now().time()
+    result = []
+
+    for cineplex in system.cineplex_list:
+        for showtime in cineplex.showtime_list:
+            try:
+                st_time = datetime.strptime(showtime.start_time, "%H:%M").time()
+            except ValueError:
+                continue
+
+            if st_time >= current_time:
+                result.append({
+                    "cineplex_name": cineplex.get_cineplex_name(),
+                    "showtime_id": showtime.id,
+                    "movie_name": showtime.movie.name,
+                    "theater_id": showtime.theater.id,
+                    "start_time": showtime.start_time,
+                    "end_time": showtime.end_time,
+                    "price": showtime.base_price,
+                })
+
+    return {
+        "current_time_now": current_time.strftime("%H:%M"),
+        "total_available": len(result),
+        "showtimes": result,
+    }
 
 
 # ==========================================

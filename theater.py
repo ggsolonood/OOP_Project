@@ -143,6 +143,14 @@ class Showtime:
     def base_price(self):
         return self.__base_price
 
+    @property
+    def start_time(self):
+        return self.__start_time
+
+    @property
+    def end_time(self):
+        return self.__end_time
+
     def is_seat_available(self, seat_no):
         for s in self.__showtime_seat:
             if s.seat_number == seat_no:
