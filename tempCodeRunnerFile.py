@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-class MemberTier(Enum):
-    SILVER   = "Silver"
-    GOLD     = "Gold"
-    PLATINUM = "Platinum"
-    GUEST    = "Guest"
-=======
+
 from datetime import datetime
 from enums import SeatType, MemberTier
 from theater import Movie, Theater, Seat, Showtime
@@ -64,4 +58,3 @@ system.process_create_reward("Movie Ticket (Standard)", 300, 10)
 
 system.process_create_booking("U01","CPX01","ST01","A1")
 system.process_create_booking("M001","CPX01","ST01","A2")
->>>>>>> 9ae354a701942c4a36b99a0958036e343851d421

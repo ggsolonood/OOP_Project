@@ -1,6 +1,10 @@
 from enum import Enum
 
-
+class MemberTier(Enum):
+    SILVER   = "Silver"
+    GOLD     = "Gold"
+    PLATINUM = "Platinum"
+    GUEST    = "Guest"
 class OrderStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
