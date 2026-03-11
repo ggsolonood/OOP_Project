@@ -108,8 +108,13 @@ class Ticket:
 # ── User ──────────────────────────────────────────────────────────────────
 
 class User:
-    def __init__(self, id: str, name: str, email: str = "", phone_number: str = "",
-                 birthday: str = "", password: str = ""):
+    def __init__(self, id: str, name: str, email: str = "",
+                 phone_number: str = "", birthday: str = "", password: str = ""):
+        """
+        สร้าง User ใหม่
+        - Guest  : ต้องการแค่ id + name (email ถ้ามี)
+        - Member : เพิ่ม phone_number, birthday, password ตอน register
+        """
         self.__id             = id
         self.__name           = name
         self.__email          = email
@@ -131,6 +136,18 @@ class User:
     @property
     def name(self) -> str:
         return self.__name
+
+    @property
+    def email(self) -> str:
+        return self.__email
+
+    @property
+    def phone_number(self) -> str:
+        return self.__phone_number
+
+    @property
+    def birthday(self) -> str:
+        return self.__birthday
 
     @property
     def booking_list(self) -> List[Booking]:
@@ -173,6 +190,13 @@ class User:
 
     def add_password(self, password: str):
         self.__password = password
+
+    def set_profile(self, phone_number: str = "", birthday: str = ""):
+        """อัปเดตข้อมูลโปรไฟล์ตอนสมัครสมาชิก"""
+        if phone_number:
+            self.__phone_number = phone_number
+        if birthday:
+            self.__birthday = birthday
 
     def check_password(self, password: str) -> bool:
         return self.__password == password

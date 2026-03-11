@@ -49,19 +49,16 @@ cineplex_siam.add_movie(movie4)
 showtime1 = Showtime(
     "ST01", movie1, theater1, ShowtimeStatus.ACTIVE, "TH",
     start_time=datetime(2026, 3, 11, 10, 0),
-    end_time=datetime(2026, 3, 11, 12, 0),
     base_price=200,
 )
 showtime2 = Showtime(
     "ST02", movie1, theater1, ShowtimeStatus.ACTIVE, "EN",
     start_time=datetime(2026, 3, 11, 14, 0),
-    end_time=datetime(2026, 3, 11, 16, 0),
     base_price=200,
 )
 showtime3 = Showtime(
     "ST03", movie2, theater2, ShowtimeStatus.ACTIVE, "TH",
     start_time=datetime(2026, 3, 11, 13, 0),
-    end_time=datetime(2026, 3, 11, 16, 1),
     base_price=350,
 )
 cineplex_siam.add_showtime(showtime1)

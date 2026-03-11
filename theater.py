@@ -1,6 +1,6 @@
 from typing import List, Optional
-from datetime import datetime
-from enums import SeatType, TheaterType, BookingStatus
+from datetime import datetime, timedelta
+from enums import SeatType, TheaterType, BookingStatus, ShowtimeStatus
 
 
 class Seat:
