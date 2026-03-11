@@ -3,7 +3,7 @@ from datetime import datetime
 from enums import BookingStatus, MemberTier
 from goods import Goods
 from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat , Review
-from payment import PaymentGateway, Order
+from payment import Order , Bank
 from user import Booking, Ticket, User, Reward
 
 
@@ -128,7 +128,7 @@ class Cineplex:
 # ── JamorCineplex ─────────────────────────────────────────────────────────
 
 class JamorCineplex:
-    def __init__(self,bank):
+    def __init__(self,bank: Bank):
         self.__cineplex_list: List[Cineplex] = []
         self.__user_list:     List[User]     = []
         self.__booking_list:  List[Booking]  = []
@@ -537,7 +537,6 @@ class JamorCineplex:
             return False, "Cannot cancel a completed booking"
         if booking.status == BookingStatus.CONFIRMED:
             self.__bank.refund(booking.account, booking.total_price)
-            pass
         booking.showtime.remove_seats([s.seat_number for s in booking.showtime_seat])
         booking.status = BookingStatus.CANCELLED
         return True, f"Booking {booking_id} cancelled "
@@ -553,7 +552,7 @@ class JamorCineplex:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
         total  = booking.total_price
-        result = PaymentGateway(account_id, total, self.__bank).pay()
+        result = self.__bank.payment(account_id, total, self.__bank)
         if result == "Account not found" : return False , result
         if not result:
             return False, "Failed: Insufficient balance"
@@ -660,8 +659,8 @@ class JamorCineplex:
         self.__order_counter += 1
 
         order   = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
-        gateway = PaymentGateway(account_id, total_price,self.__bank)
-        if gateway.pay():
+        gateway = self.__bank.payment(account_id, total_price)
+        if gateway :
             target_good.clearstock(values)
             self.__order_list.append(order)
             return True, {"order_id": order_id, "total_paid": total_price}
