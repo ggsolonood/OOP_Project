@@ -417,3 +417,8 @@ def review_movie(user_id:str,booking_id:str,star:int,comment:str) :
     success , msg = system.process_review_movie(user_id,booking_id,star,comment)
     if not success : raise HTTPException(status_code=400 , detail=msg)
     return  {"message":msg}
+
+@user_router.get("/{user_id}/view_review")
+def read_review(movie_id: str):
+    result = system.process_read_review(movie_id)
+    return {"message": result}

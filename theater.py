@@ -93,6 +93,10 @@ class Movie:
     @property
     def duration(self) :
         return self.__duration
+    
+    @property
+    def review(self) :
+        return self.__review
 
 class ShowtimeSeat(Seat):
     def __init__(self, seat: Seat, status: BookingStatus):

@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime , timedelta
 from enums import BookingStatus, MemberTier, OrderStatus
 from goods import Goods
-from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat
+from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat , Review
 from payment import Bank, Order
 from user import Booking, Ticket, User, Reward
 
@@ -659,7 +659,7 @@ class JamorCineplex:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
         total  = booking.total_price
-        result = self.__bank.payment(account_id, total, self.__bank)
+        result = self.__bank.payment(account_id, total)
         if result == "Account not found" : return False , result
         if not result:
             return False, "Failed: Insufficient balance"
@@ -1005,3 +1005,23 @@ class JamorCineplex:
                     return False , "Booking not found"
             else :
                 return False , "User not found."
+
+    def process_read_review(self,movie_id) :
+        result = []
+        check = 1
+        for cineplex in self.__cineplex_list:
+            for movie in cineplex.movies_list:
+                if movie.id == movie_id :
+                    check = 0
+                    for review in movie.review :
+                        result.append(review.read)
+        if check :
+            return "Movie not found"
+        if not result :
+            return "No review"
+        return result
+    
+    def complete(self,booking_id) :
+        for i in self.__booking_list :
+            if i.id == booking_id :
+                i.status = BookingStatus.COMPLETED
