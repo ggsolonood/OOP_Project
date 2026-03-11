@@ -363,7 +363,7 @@ class JamorCineplex:
                 f" – {conflict.end_time.strftime(Showtime.DT_FORMAT)}) "
                 f"overlaps with the requested slot."
             )
-
+ 
         showtime_id = f"STIME-{self.__showtime_counter:04d}"
         self.__showtime_counter += 1
         new_showtime = Showtime(showtime_id, movie, theater, status, subtitle,
