@@ -713,7 +713,7 @@ class JamorCineplex:
         if booking_status == BookingStatus.CONFIRMED:
             if new_total > old_total:
                 return None, "Cannot change to more expensive seats"
-            showtime.remove_seats(current_seats)
+            showtime.remove_seats(current_seats.state)
             new_st = showtime.add_seats(new_real_seats, BookingStatus.CONFIRMED)
             booking.showtime_seat = new_st
             booking.total_price   = new_total

@@ -102,6 +102,10 @@ class ShowtimeSeat(Seat):
     @property
     def status(self) -> BookingStatus:
         return self.__status
+    
+    def state(self) :
+        self.__status = "Available"
+        return self.__status
 
 
 class Showtime:
@@ -188,6 +192,7 @@ class Showtime:
         self.__showtime_seat = [
             s for s in self.__showtime_seat if s.seat_number not in seat_nos
         ]
+
 
     def add_seats(self, seats: list, status: BookingStatus) -> List[ShowtimeSeat]:
         new_seats = []
