@@ -6,7 +6,7 @@ from mock_data import system
 from theater import Showtime
 from enums import BookingStatus
 from schemas import (
-    CineplexCreate, MovieCreate, TheaterCreate, SeatCreate, ShowtimeCreate,
+    CineplexCreate, MovieCreate, TheaterCreate, SeatCreate, SeatsBulkCreate, ShowtimeCreate,
     CouponCreate, BookingCreate, BookingChangeSeats,
     RewardCreate, RewardExchange,
 )
@@ -41,6 +41,15 @@ def get_showtimes_by_movie_name(movie_name: str = Query(..., description="ชื
     return {"search": movie_name, "total": len(result), "showtimes": result}
 
 
+@movie_router.get("/showtimes/{cineplex_id}/{showtime_id}/available-seats")
+def get_available_seats(cineplex_id: str, showtime_id: str):
+    """ดูที่นั่งว่างทั้งหมดในรอบฉาย พร้อมประเภทและราคา"""
+    success, msg, data = system.process_get_available_seats(cineplex_id, showtime_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=msg)
+    return data
+
+
 # ── ADMIN ─────────────────────────────────────────────────────────────────
 
 @admin_router.post("/cineplex/")
@@ -72,13 +81,42 @@ def create_theater(body: TheaterCreate):
 
 @admin_router.post("/seat/")
 def create_seat(body: SeatCreate):
-    """**type_seat**: `Normalseat` | `Sofa` | `Honeymoonbed`  (case-insensitive)"""
+    """สร้าง seat เดี่ยว — **type_seat**: `Normalseat` | `Sofa` | `Honeymoonbed`  (case-insensitive)"""
     success, msg = system.process_create_seat(
         body.cineplex_id, body.theater_id, body.seat_number, body.type_seat
     )
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return msg
+
+
+@admin_router.post("/seats/bulk")
+def create_seats_bulk(body: SeatsBulkCreate):
+    """
+    สร้าง seat หลายที่นั่งพร้อมกัน
+    **type_seat**: `Normalseat` | `Sofa` | `Honeymoonbed` (case-insensitive)
+    ```json
+    {
+      "cineplex_id": "CPX01",
+      "theater_id": "T01",
+      "seats": [
+        {"seat_number": "A1", "type_seat": "Normalseat"},
+        {"seat_number": "B1", "type_seat": "Sofa"}
+      ]
+    }
+    ```
+    """
+    seat_dicts = [s.model_dump() for s in body.seats]
+    success, result = system.process_create_seats_bulk(
+        body.cineplex_id, body.theater_id, seat_dicts
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail=result)
+    return {
+        "message":       f"Bulk seat creation done. Created: {len(result['created'])}, Failed: {len(result['failed'])}",
+        "created":       result["created"],
+        "failed":        result["failed"],
+    }
 
 
 @admin_router.post("/showtime/")
@@ -264,6 +302,15 @@ def view_point(user_id: str):
         "name":    user.name,
         "points":  user.get_point(),
     }
+
+
+@user_router.post("/{user_id}/addcouponmon")
+def add_monthly_coupon(user_id: str):
+    """รับคูปองส่วนลดรายเดือน (50 บาท) — รับได้ 1 ครั้ง/เดือน เฉพาะ member ที่ลงทะเบียนแล้ว"""
+    success, msg, data = system.process_get_monthly_coupon(user_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"message": msg, "data": data}
 
 
 @user_router.post("/register")

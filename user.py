@@ -122,6 +122,7 @@ class User:
         self.__booking_list:  List[Booking] = []
         self.__total_spending = 0
         self.__type_user      = MemberTier.GUEST
+        self.__last_monthly_coupon: Optional[str] = None  # "YYYY-MM" ของเดือนล่าสุดที่รับ
 
     @property
     def id(self) -> str:
@@ -162,6 +163,13 @@ class User:
 
     def add_ticket(self, t: Ticket):
         self.__ticket_list.append(t)
+
+    def get_last_monthly_coupon(self) -> Optional[str]:
+        return self.__last_monthly_coupon
+
+    def set_last_monthly_coupon(self, ym: str):
+        """ym = 'YYYY-MM'"""
+        self.__last_monthly_coupon = ym
 
     def add_password(self, password: str):
         self.__password = password

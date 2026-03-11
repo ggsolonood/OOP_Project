@@ -26,6 +26,17 @@ class SeatCreate(BaseModel):
     type_seat: str
 
 
+class SeatItem(BaseModel):
+    seat_number: str
+    type_seat: str
+
+
+class SeatsBulkCreate(BaseModel):
+    cineplex_id: str
+    theater_id: str
+    seats: List[SeatItem]
+
+
 class ShowtimeCreate(BaseModel):
     cineplex_id: str
     movie_id: str
