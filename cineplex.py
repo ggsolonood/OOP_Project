@@ -961,6 +961,7 @@ class JamorCineplex:
         user.add_password(password)
         user.set_profile(phone_number=phone_number, birthday=birthday)
         user.change_type(MemberTier.SILVER)
+        self.__user_list.append(user)
         return True, {
             "user_id":      user_id,
             "name":         user.name,
