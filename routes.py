@@ -280,3 +280,9 @@ def login(user_id: str, password: str):
     if not success:
         raise HTTPException(status_code=401, detail=result)
     return result
+
+@user_router.post("/{user_id}/review_movie")
+def review_movie(user_id:str,booking_id:str,star:int,comment:str) :
+    success , msg = system.process_review_movie(user_id,booking_id,star,comment)
+    if not success : raise HTTPException(status_code=400 , detail=msg)
+    return  {"message":msg}
