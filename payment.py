@@ -51,18 +51,6 @@ class Bank:
         account = self._find_account(account_id)
         return account.increase_balance(amount) if account else False
 
-class PaymentGateway:
-    def __init__(self, account_id: str, amount: float, bank:Bank):
-        self.__account_id = account_id
-        self.__amount     = amount
-        self.__bank = bank
-
-    def pay(self) -> bool:
-        return self.__bank.payment(self.__account_id, self.__amount)
-    
-    def refund(self) -> bool:
-        return self.__bank.refund(self.__account_id,self.__amount)
-
 class Order:
     def __init__(self, order_id: str, goods_name: str, values: int,
                  account_id: str, total_paid: float,
@@ -94,6 +82,3 @@ class Order:
 
     def get_used_coupon(self) -> Optional[str]:
         return self.__coupon_id
-
-    def pay(self, bank: Bank, gateway: PaymentGateway) -> bool:
-        return gateway.pay(bank)
