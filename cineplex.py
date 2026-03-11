@@ -987,4 +987,21 @@ class JamorCineplex:
             "message": "Login successful",
         }
 
-
+    def process_review_movie(self,user_id,booking_id,star,comment) :
+            if star not in [1,2,3,4,5] :
+                return False , "Can rate 1 - 5 star only"
+            user = self.search_user_by_id(user_id)
+            if user :
+                booking = user.search_booking_by_id(booking_id)
+                if booking :
+                    if booking.status == BookingStatus.COMPLETED :
+                        movie = booking.showtime.movie
+                        review = Review(star,comment,user.name)
+                        movie.add_review(review)
+                        return True , "Review success"
+                    else :
+                        return False , "You haven't watch the movie"
+                else :
+                    return False , "Booking not found"
+            else :
+                return False , "User not found."
