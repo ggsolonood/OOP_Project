@@ -54,6 +54,3 @@ system.process_create_coupon("discount", "Discount 20 (limited)", discount=20,
 # ── Rewards ───────────────────────────────────────────────────────────────
 system.process_create_reward("Free Popcorn (M)", 100, 50)
 system.process_create_reward("Movie Ticket (Standard)", 300, 10)
-
-system.process_create_booking("U01","CPX01","ST01","A1")
-system.process_create_booking("M001","CPX01","ST01","A2")
