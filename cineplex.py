@@ -775,8 +775,6 @@ class JamorCineplex:
 
     def process_register(self, user_id: str, password: str) -> tuple:
         user = self.search_user_by_id(user_id)
-        if not user:
-            return False, "User not found"
         if user.has_password():
             return False, "User already registered. Use change password instead."
         if not password or len(password) < 4:
