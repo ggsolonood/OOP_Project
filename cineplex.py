@@ -3,7 +3,7 @@ from datetime import datetime
 from enums import BookingStatus, MemberTier
 from goods import Goods
 from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat , Review
-from payment import PaymentGateway, Order
+from payment import PaymentGateway, Order , Bank
 from user import Booking, Ticket, User, Reward
 
 
@@ -663,39 +663,42 @@ class JamorCineplex:
             return True, {"order_id": order_id, "total_paid": total_price}
         return False, "Payment failed: Insufficient balance or invalid account."
 
-    def process_cancel_order(self, cineplex_id, order_id, user_id):
+    def process_cancel_order(self, cineplex_id: str, order_id: str, user_id: str):
+        # 1. ตรวจสอบข้อมูลเบื้องต้น (Guard Clauses)
         member = self.search_user_by_id(user_id)
         if not member:
-            return False, "Member not found"
+            return False, "Member not found."
+
         order = self.search_order_by_id(order_id)
         if not order:
-            return False, "Order not found"
+            return False, "Order not found."
+            
+        cineplex = self.search_cineplex_by_id(cineplex_id)
+        if not cineplex:
+            return False, "Cineplex not found."
 
         current_status = order.get_status()
         if current_status == OrderStatus.CANCELLED.value:
-            return False, "Order is already cancelled"
-        if current_status == OrderStatus.REFUNDED.value:
-            return False, "Order has already been refunded"
+            return False, "Order is already cancelled."
 
-        if current_status == OrderStatus.COMPLETED.value:
-            account_id, total_paid = order.get_payment_details()
-            if True:  # refund always succeeds (no bank)
-                goods_name, values = order.get_items()
-                cineplex = self.search_cineplex_by_id(cineplex_id)
-                if cineplex:
-                    g = cineplex.search_goods_stock(goods_name)
-                    if g:
-                        g.restore_stock(values)
-                cid = order.get_used_coupon()
-                if cid:
-                    for c in self.__coupon_list:
-                        if c.get_coupon_id() == cid:
-                            c.update_status("Available")
-                            break
-                order.update_status(OrderStatus.CANCELLED)
-                return True, f"Cancel success, Refund {total_paid} THB"
-            return False, "Refund failed"
-        return False, "Cannot cancel order with current status"
+        account_id, total_paid = order.get_payment_details()
+
+        payment = PaymentGateway(account_id,total_paid,self.__bank).refund()
+
+        goods_name, values = order.get_items()
+        goods = cineplex.search_goods_stock(goods_name)
+        if goods:
+            goods.restore_stock(values) 
+
+        cid = order.get_used_coupon()
+        if cid:
+            coupon = next((c for c in self.__coupon_list if c.get_coupon_id() == cid), None)
+            if coupon:
+                coupon.update_status("Available")
+
+        order.update_status(OrderStatus.CANCELLED)
+        
+        return True, f"Cancel success, Refunded {total_paid} THB."
 
     # ── movie / showtime query ──
 

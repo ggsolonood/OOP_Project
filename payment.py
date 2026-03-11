@@ -52,13 +52,16 @@ class Bank:
         return account.increase_balance(amount) if account else False
 
 class PaymentGateway:
-    def __init__(self, account_id: str, amount: float, bank:str):
+    def __init__(self, account_id: str, amount: float, bank:Bank):
         self.__account_id = account_id
         self.__amount     = amount
         self.__bank = bank
 
     def pay(self) -> bool:
         return self.__bank.payment(self.__account_id, self.__amount)
+    
+    def refund(self) -> bool:
+        return self.__bank.refund(self.__account_id,self.__amount)
 
 class Order:
     def __init__(self, order_id: str, goods_name: str, values: int,
@@ -94,7 +97,3 @@ class Order:
 
     def pay(self, bank: Bank, gateway: PaymentGateway) -> bool:
         return gateway.pay(bank)
-
-    def pay_direct(self) -> bool:
-        """จ่ายเงินโดยไม่ผ่าน Bank — คืน True เสมอ (สำหรับระบบที่ไม่มี Bank)"""
-        return True

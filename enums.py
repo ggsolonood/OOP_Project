@@ -4,7 +4,6 @@ from enum import Enum
 class OrderStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
-    REFUNDED  = "Refunded"
 
 
 class SeatType(Enum):
