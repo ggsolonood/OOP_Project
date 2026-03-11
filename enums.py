@@ -1,5 +1,9 @@
 from enum import Enum
 
+class ShowtimeStatus(Enum):
+    COMPLETED = "Completed"
+    ACTIVE = "Active"
+
 
 class OrderStatus(Enum):
     COMPLETED = "Completed"
@@ -53,6 +57,10 @@ class BookingStatus(Enum):
     CONFIRMED = "Confirmed"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
+
+class SeatStatus(Enum):
+    BOOKED = "Booked"
+    OCCUPIED = "Occupied"
 
 
 class GoodsType(Enum):

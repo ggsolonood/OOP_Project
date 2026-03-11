@@ -1,5 +1,5 @@
 from datetime import datetime
-from enums import SeatType, MemberTier
+from enums import SeatType, MemberTier, ShowtimeStatus
 from theater import Movie, Theater, Seat, Showtime
 from cineplex import Cineplex, JamorCineplex
 from payment import Bank
@@ -37,24 +37,29 @@ cineplex_siam.add_theater(theater2)
 # Movies
 movie1 = Movie("M01", "The Matrix", 120, "Sci-Fi", "13+")
 movie2 = Movie("M02", "Avengers: Endgame", 181, "Action", "13+")
+movie3 = Movie("M03", "Avatar: The way of water",192, "Action", "13+")
+movie4 = Movie("M04","Jurassic World", 124, "Action", "13+")
+
 cineplex_siam.add_movie(movie1)
 cineplex_siam.add_movie(movie2)
+cineplex_siam.add_movie(movie3)
+cineplex_siam.add_movie(movie4)
 
 # Showtimes
 showtime1 = Showtime(
-    "ST01", movie1, theater1, "Active", "TH",
+    "ST01", movie1, theater1, ShowtimeStatus.ACTIVE, "TH",
     start_time=datetime(2026, 3, 11, 10, 0),
     end_time=datetime(2026, 3, 11, 12, 0),
     base_price=200,
 )
 showtime2 = Showtime(
-    "ST02", movie1, theater1, "Active", "EN",
+    "ST02", movie1, theater1, ShowtimeStatus.ACTIVE, "EN",
     start_time=datetime(2026, 3, 11, 14, 0),
     end_time=datetime(2026, 3, 11, 16, 0),
     base_price=200,
 )
 showtime3 = Showtime(
-    "ST03", movie2, theater2, "Active", "TH",
+    "ST03", movie2, theater2, ShowtimeStatus.ACTIVE, "TH",
     start_time=datetime(2026, 3, 11, 13, 0),
     end_time=datetime(2026, 3, 11, 16, 1),
     base_price=350,
@@ -73,6 +78,45 @@ cineplex_siam.add_goods("Coke", 300, 50, "Drinks", flavor="Original")
 cineplex_siam.add_goods("Nachos", 100, 80, "Snack")
 
 system.add_cineplex(cineplex_siam)
+# ── Cineplex EmQuartier ───────────────────────────────────────────────────
+cineplex_emq = Cineplex("CPX02", "EmQuartier")
+
+# Theater 3 — 4DX (สาขานี้เน้นเทคโนโลยี 4DX)
+theater3 = Theater.create("T03", "4DX")
+theater3.add_seat(Seat("S11", "A1", SeatType.NORMALSEAT))
+theater3.add_seat(Seat("S12", "A2", SeatType.NORMALSEAT))
+theater3.add_seat(Seat("S13", "B1", SeatType.SOFA))
+theater3.add_seat(Seat("S14", "B2", SeatType.SOFA))
+cineplex_emq.add_theater(theater3)
+
+# เพิ่มหนังที่ต้องการฉายในสาขานี้
+cineplex_emq.add_movie(movie3) # Avatar: The way of water
+cineplex_emq.add_movie(movie4) # Jurassic World
+
+# --- รอบฉายที่ Completed ไปแล้ว (ฉายเมื่อวานนี้) ---
+showtime_past = Showtime(
+    "ST04", movie3, theater3, ShowtimeStatus.COMPLETED, "EN",
+    start_time=datetime(2026, 3, 10, 19, 0), # 10 มีนาคม 2026
+    end_time=datetime(2026, 3, 10, 22, 0),
+    base_price=400,
+)
+
+# --- รอบฉายที่กำลัง Active (ฉายวันนี้ช่วงเย็น) ---
+showtime_active = Showtime(
+    "ST05", movie4, theater3, ShowtimeStatus.ACTIVE, "TH",
+    start_time=datetime(2026, 3, 11, 18, 0), # 11 มีนาคม 2026 (วันนี้)
+    end_time=datetime(2026, 3, 11, 20, 0),
+    base_price=300,
+)
+
+# บันทึกรอบฉายลงในรายการของสาขาและโรง
+cineplex_emq.add_showtime(showtime_past)
+cineplex_emq.add_showtime(showtime_active)
+theater3.add_showtime(showtime_past)
+theater3.add_showtime(showtime_active)
+
+# เพิ่มสาขา EmQuartier ลงในระบบหลัก
+system.add_cineplex(cineplex_emq)
 
 # ── Users ─────────────────────────────────────────────────────────────────
 system.register_member("J",   "01-01-1990", "M001", "2023-01-01")
