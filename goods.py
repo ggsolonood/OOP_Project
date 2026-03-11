@@ -31,6 +31,10 @@ class Goods:
     def get_price(self) -> float:
         return self.__price
 
+    @property
+    def stock(self) -> int:
+        return self.__values
+
     def check_values(self, amount_needed: int) -> bool:
         return self.__values >= amount_needed
 

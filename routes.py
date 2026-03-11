@@ -130,10 +130,10 @@ def create_seats_bulk(body: SeatsBulkCreate):
 
 @admin_router.post("/showtime/")
 def create_showtime(body: ShowtimeCreate):
-    """**start_time / end_time** format: `YYYY-MM-DD HH:MM`"""
+    """**start_time** format: `YYYY-MM-DD HH:MM` | **duration_minutes**: ความยาวรอบฉาย (นาที)"""
     success, msg = system.process_create_showtime(
         body.cineplex_id, body.movie_id, body.theater_id,
-        body.status, body.subtitle, body.start_time, body.base_price
+        body.status, body.subtitle, body.start_time, body.duration_minutes, body.base_price
     )
     if not success:
         raise HTTPException(status_code=400, detail=msg)

@@ -44,7 +44,7 @@ class ShowtimeCreate(BaseModel):
     status: str
     subtitle: str
     start_time: str
-    end_time: str
+    duration_minutes: int
     base_price: float
 
 

@@ -21,6 +21,10 @@ class Coupon:
         return self.__coupon_id
 
     @property
+    def coupon_name(self) -> str:
+        return self.__name
+
+    @property
     def last_date(self) -> Optional[datetime]:
         return self.__last_date
 
@@ -82,6 +86,10 @@ class Cineplex:
     @property
     def movies_list(self) -> List[Movie]:
         return self.__movies_list
+
+    @property
+    def goods_list(self):
+        return self.__goods_list
 
     def get_cineplex_name(self) -> str:
         return self.__name
@@ -321,7 +329,7 @@ class JamorCineplex:
         return True, {"created": created, "failed": failed}
 
     def process_create_showtime(self, cineplex_id, movie_id, theater_id,
-                                status, subtitle, start_time, base_price):
+                                status, subtitle, start_time, duration_minutes, base_price):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
@@ -334,12 +342,14 @@ class JamorCineplex:
 
         try:
             dt_start = datetime.strptime(start_time, Showtime.DT_FORMAT)
-            dt_end   = datetime.strptime(end_time,   Showtime.DT_FORMAT)
         except ValueError:
-            return False, f"Invalid datetime format. Use '{Showtime.DT_FORMAT}' (e.g. '2025-12-31 14:30')"
+            return False, f"Invalid datetime format. Use '{Showtime.DT_FORMAT}' (e.g. '2026-03-11 14:30')"
 
-        if dt_end <= dt_start:
-            return False, "end_time must be after start_time"
+        if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
+            return False, "duration_minutes must be a positive number"
+
+        from datetime import timedelta
+        dt_end = dt_start + timedelta(minutes=duration_minutes)
 
         if theater.has_conflict(dt_start, dt_end):
             conflict = next(
@@ -357,7 +367,7 @@ class JamorCineplex:
         showtime_id = f"STIME-{self.__showtime_counter:04d}"
         self.__showtime_counter += 1
         new_showtime = Showtime(showtime_id, movie, theater, status, subtitle,
-                                dt_start, base_price)
+                                dt_start, dt_end, base_price)
         cineplex.add_showtime(new_showtime)
         theater.add_showtime(new_showtime)
         return True, {"message": "Showtime created successfully.", "showtime_id": showtime_id}
@@ -404,6 +414,45 @@ class JamorCineplex:
             {"reward_id": r.id, "name": r.name, "point_cost": r.point_cost, "stock": r.stock}
             for r in self.__reward_list
         ]
+
+    def process_get_user_coupons(self, user_id: str):
+        """
+        ดูคูปองทั้งหมดในระบบ (global coupon pool)
+        คืน (success, msg, list)
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+
+        result = []
+        for c in self.__coupon_list:
+            result.append({
+                "coupon_id":   c.get_coupon_id(),
+                "name":        c.coupon_name,
+                "type":        "discount" if isinstance(c, DiscountCoupon) else
+                               "exchange" if isinstance(c, ExchangeCoupon) else "base",
+                "discount":    c.get_discount(),
+                "is_used":     c._is_used,
+                "is_expired":  c.is_expired(),
+                "valid_until": c.last_date.strftime("%Y-%m-%d %H:%M") if c.last_date else "ไม่มีวันหมดอายุ",
+            })
+        return True, f"Found {len(result)} coupon(s)", result
+
+    def process_get_goods_all(self):
+        """ดูสินค้าทั้งหมดที่มีในทุก Cineplex"""
+        result = []
+        for cineplex in self.__cineplex_list:
+            for g in cineplex.goods_list:
+                result.append({
+                    "cineplex_id":   cineplex.id,
+                    "cineplex_name": cineplex.get_cineplex_name(),
+                    "name":          g.get_name(),
+                    "type":          g.goods_type.value,
+                    "flavor":        g.flavor or "-",
+                    "price":         g.get_price(),
+                    "stock":         g.stock,
+                })
+        return result
 
     def process_exchange_reward(self, user_id: str, reward_id: str):
         user = self.search_user_by_id(user_id)
