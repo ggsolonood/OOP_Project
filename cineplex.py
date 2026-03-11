@@ -1,9 +1,9 @@
 from typing import List, Optional
 from datetime import datetime
-from enums import BookingStatus, MemberTier
+from enums import BookingStatus, MemberTier, OrderStatus
 from goods import Goods
 from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat
-from payment import PaymentGateway, Order
+from payment import Bank, Order
 from user import Booking, Ticket, User, Reward
 
 
@@ -128,7 +128,8 @@ class Cineplex:
 # ── JamorCineplex ─────────────────────────────────────────────────────────
 
 class JamorCineplex:
-    def __init__(self):
+    def __init__(self, bank: Optional[Bank] = None):
+        self.__bank           = bank   # Bank instance (ถ้า None จะใช้ pay_direct)
         self.__cineplex_list: List[Cineplex] = []
         self.__user_list:     List[User]     = []
         self.__booking_list:  List[Booking]  = []
@@ -148,6 +149,10 @@ class JamorCineplex:
         self.__reward_counter   = 1
         self.__user_counter     = 1
         self.__booking_id       = 0
+
+    @property
+    def bank(self) -> Optional[Bank]:
+        return self.__bank
 
     @property
     def cineplex_list(self) -> List[Cineplex]:
@@ -573,8 +578,8 @@ class JamorCineplex:
         if booking.status != BookingStatus.PENDING:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
-        total  = booking.total_price
-        result = PaymentGateway(account_id, total).pay_direct()
+        total   = booking.total_price
+        result  = self.__bank.payment(account_id, total) if self.__bank else True
         if not result:
             return False, "Failed: Insufficient balance"
 
@@ -678,9 +683,9 @@ class JamorCineplex:
         order_id    = f"ORD-{self.__order_counter:04d}"
         self.__order_counter += 1
 
-        order   = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
-        gateway = PaymentGateway(account_id, total_price)
-        if gateway.pay_direct():
+        order  = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
+        result = self.__bank.payment(account_id, total_price) if self.__bank else True
+        if result:
             target_good.clearstock(values)
             self.__order_list.append(order)
             return True, {"order_id": order_id, "total_paid": total_price}
@@ -702,7 +707,9 @@ class JamorCineplex:
 
         if current_status == OrderStatus.COMPLETED.value:
             account_id, total_paid = order.get_payment_details()
-            if True:  # refund always succeeds (no bank)
+            # คืนเงิน: ถ้ามี bank ใช้ refund จริง ถ้าไม่มี refund เสมอสำเร็จ
+            refund_ok = self.__bank.refund(account_id, total_paid) if self.__bank else True
+            if refund_ok:
                 goods_name, values = order.get_items()
                 cineplex = self.search_cineplex_by_id(cineplex_id)
                 if cineplex:
@@ -861,5 +868,3 @@ class JamorCineplex:
         }
 
 
-# Fix missing import at top of file
-from enums import OrderStatus

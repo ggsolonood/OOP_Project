@@ -270,6 +270,31 @@ def get_all_users():
     return {"users": result}
 
 
+# ⚠️ Static routes (/guest, /login) ต้องอยู่ก่อน dynamic routes (/{user_id})
+# มิฉะนั้น FastAPI จะ match "guest" และ "login" เป็น user_id แทน
+
+@user_router.post("/guest")
+def create_guest(body: GuestCreate):
+    """
+    สร้าง User ใหม่แบบ Guest
+    - ต้องการแค่ **name** (email ถ้ามีก็ใส่ได้)
+    - tier = GUEST, ยังไม่มี password
+    - ใช้ user_id ที่ได้รับไปเรียก `/{user_id}/register` เพื่อสมัครสมาชิก
+    """
+    success, result = system.process_register_guest(body.name, body.email)
+    if not success:
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@user_router.post("/login")
+def login(user_id: str, password: str):
+    success, result = system.process_login(user_id, password)
+    if not success:
+        raise HTTPException(status_code=401, detail=result)
+    return result
+
+
 @user_router.get("/{user_id}/bookings")
 def get_user_bookings(user_id: str, status_filter: Optional[str] = None):
     success, msg, data = system.process_get_booking_history(user_id, status_filter)
@@ -322,20 +347,6 @@ def add_monthly_coupon(user_id: str):
     return {"message": msg, "data": data}
 
 
-@user_router.post("/guest")
-def create_guest(body: GuestCreate):
-    """
-    สร้าง User ใหม่แบบ Guest
-    - ต้องการแค่ **name** (email ถ้ามีก็ใส่ได้)
-    - tier = GUEST, ยังไม่มี password
-    - ใช้ user_id ที่ได้รับไปเรียก `/register` เพื่อสมัครสมาชิก
-    """
-    success, result = system.process_register_guest(body.name, body.email)
-    if not success:
-        raise HTTPException(status_code=400, detail=result)
-    return result
-
-
 @user_router.post("/{user_id}/register")
 def register(user_id: str, body: RegisterMember):
     """
@@ -349,12 +360,4 @@ def register(user_id: str, body: RegisterMember):
     )
     if not success:
         raise HTTPException(status_code=400, detail=result)
-    return result
-
-
-@user_router.post("/login")
-def login(user_id: str, password: str):
-    success, result = system.process_login(user_id, password)
-    if not success:
-        raise HTTPException(status_code=401, detail=result)
     return result
