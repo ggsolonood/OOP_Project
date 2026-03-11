@@ -700,7 +700,7 @@ class JamorCineplex:
                 if booking :
                     movie = booking.showtime.movie
                     review = Review(star,comment,user.name)
-                    movie.add_reiew(review)
+                    movie.add_review(review)
                     return True , "Review success"
                 else :
                     return False , "Booking not found"
