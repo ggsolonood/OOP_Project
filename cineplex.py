@@ -732,7 +732,7 @@ class JamorCineplex:
         order_id    = f"ORD-{self.__order_counter:04d}"
         self.__order_counter += 1
 
-        order  = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
+        order  = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id, user_id=user_id)
         result = self.__bank.payment(account_id, total_price) if self.__bank else True
         if result:
             target_good.clearstock(values)
@@ -775,6 +775,38 @@ class JamorCineplex:
                 return True, f"Cancel success, Refund {total_paid} THB"
             return False, "Refund failed"
         return False, "Cannot cancel order with current status"
+
+    def process_get_order_history(self, user_id: str, status_filter: str = None):
+        """
+        ดูประวัติการสั่งซื้อสินค้าของ user
+        status_filter: "Completed" | "Cancelled" | "Refunded" | None = ทั้งหมด
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+
+        orders = [o for o in self.__order_list if o.get_user_id() == user_id]
+
+        if status_filter:
+            try:
+                filter_status = OrderStatus(status_filter)
+            except ValueError:
+                return False, f"Invalid status. Use: {[s.value for s in OrderStatus]}", None
+            orders = [o for o in orders if o.get_status() == filter_status.value]
+
+        result = []
+        for o in orders:
+            goods_name, values = o.get_items()
+            _, total_paid      = o.get_payment_details()
+            result.append({
+                "order_id":   o.get_order_id(),
+                "goods_name": goods_name,
+                "quantity":   values,
+                "total_paid": total_paid,
+                "coupon_id":  o.get_used_coupon(),
+                "status":     o.get_status(),
+            })
+        return True, f"Found {len(result)} order(s)", result
 
     # ── movie / showtime query ──
 

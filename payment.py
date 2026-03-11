@@ -60,7 +60,8 @@ class Order:
     def __init__(self, order_id: str, goods_name: str, values: int,
                  account_id: str, total_paid: float,
                  coupon_id: str = None,
-                 status: OrderStatus = OrderStatus.COMPLETED):
+                 status: OrderStatus = OrderStatus.COMPLETED,
+                 user_id: str = ""):
         self.__order_id   = order_id
         self.__goods_name = goods_name
         self.__values     = values
@@ -68,9 +69,13 @@ class Order:
         self.__total_paid = total_paid
         self.__coupon_id  = coupon_id
         self.__status     = status
+        self.__user_id    = user_id
 
     def get_order_id(self) -> str:
         return self.__order_id
+
+    def get_user_id(self) -> str:
+        return self.__user_id
 
     def get_status(self) -> str:
         return self.__status.value if isinstance(self.__status, OrderStatus) else self.__status

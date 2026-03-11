@@ -8,7 +8,7 @@ from enums import BookingStatus
 from schemas import (
     CineplexCreate, MovieCreate, TheaterCreate, SeatCreate, SeatsBulkCreate, ShowtimeCreate,
     CouponCreate, BookingCreate, BookingChangeSeats,
-    RewardCreate, RewardExchange, GuestCreate, RegisterMember,
+    RewardCreate, RewardExchange, GuestCreate, RegisterMember, OrderGoodsRequest,
 )
 
 admin_router   = APIRouter(prefix="/admin",   tags=["Cinema Management"])
@@ -181,14 +181,27 @@ def get_all_showtimes():
         "showtimes":        result,
     }
 
-
 # ── STORE ─────────────────────────────────────────────────────────────────
 
+@store_router.get("/goods/")
+def get_all_goods():
+    """ดูสินค้าทั้งหมดที่มีให้ซื้อในทุก Cineplex พร้อมราคาและสต็อก"""
+    result = system.process_get_goods_all()
+    return {"total": len(result), "goods": result}
+
+
 @store_router.post("/order/")
-def order_goods(cineplex_id: str, goods_name: str, quantity: int,
-                user_id: str, account_id: str, coupon_id: Optional[str] = None):
-    success, msg = system.process_order_goods(cineplex_id, goods_name, quantity,
-                                              user_id, account_id, coupon_id)
+def order_goods(body: OrderGoodsRequest):
+    """
+    สั่งซื้อสินค้า
+    - **goods_name**: ต้องตรงกับชื่อใน `GET /store/goods/`
+    - **account_id**: รหัสบัญชีธนาคารสำหรับตัดเงิน
+    - **coupon_id**: รหัสคูปอง (optional) ดูได้จาก `GET /users/{user_id}/coupons`
+    """
+    success, msg = system.process_order_goods(
+        body.cineplex_id, body.goods_name, body.quantity,
+        body.user_id, body.account_id, body.coupon_id
+    )
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return {"message": "Order successful", "data": msg}
@@ -200,6 +213,18 @@ def cancel_order(cineplex_id: str, order_id: str, user_id: str):
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return {"message": msg}
+
+
+@store_router.get("/orders/{user_id}")
+def get_order_history(user_id: str, status: Optional[str] = None):
+    """
+    ดูประวัติการสั่งซื้อสินค้าของ user
+    - **status** (optional): `Completed` | `Cancelled` | `Refunded`
+    """
+    success, msg, result = system.process_get_order_history(user_id, status)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"message": msg, "total": len(result), "orders": result}
 
 
 @store_router.get("/rewards/")
@@ -336,6 +361,15 @@ def view_point(user_id: str):
         "name":    user.name,
         "points":  user.get_point(),
     }
+
+
+@user_router.get("/{user_id}/coupons")
+def get_user_coupons(user_id: str):
+    """ดูคูปองทั้งหมดในระบบ พร้อมสถานะและวันหมดอายุ"""
+    success, msg, result = system.process_get_user_coupons(user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=msg)
+    return {"message": msg, "total": len(result), "coupons": result}
 
 
 @user_router.post("/{user_id}/addcouponmon")

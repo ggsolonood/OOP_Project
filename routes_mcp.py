@@ -392,6 +392,21 @@ def order_goods(
 
 
 @mcp.tool()
+def get_order_history(user_id: str, status_filter: Optional[str] = None) -> dict:
+    """
+    ดูประวัติการสั่งซื้อสินค้าของ user
+
+    Args:
+        user_id:       รหัสผู้ใช้
+        status_filter: กรองสถานะ (optional) — "Completed" | "Cancelled" | "Refunded"
+    """
+    success, msg, result = system.process_get_order_history(user_id, status_filter)
+    if not success:
+        return {"error": msg}
+    return {"message": msg, "total": len(result), "orders": result}
+
+
+@mcp.tool()
 def cancel_order(cineplex_id: str, order_id: str, user_id: str) -> dict:
     """
     ยกเลิกคำสั่งซื้อสินค้าและรับเงินคืน
