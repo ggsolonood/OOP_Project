@@ -124,7 +124,7 @@ def create_showtime(body: ShowtimeCreate):
     """**start_time / end_time** format: `YYYY-MM-DD HH:MM`"""
     success, msg = system.process_create_showtime(
         body.cineplex_id, body.movie_id, body.theater_id,
-        body.status, body.subtitle, body.start_time, body.end_time, body.base_price
+        body.status, body.subtitle, body.start_time, body.base_price
     )
     if not success:
         raise HTTPException(status_code=400, detail=msg)
@@ -313,7 +313,7 @@ def add_monthly_coupon(user_id: str):
     return {"message": msg, "data": data}
 
 
-@user_router.post("/register")
+@user_router.post("/")
 def register(user_id: str, password: str):
     success, result = system.process_register(user_id, password)
     if not success:

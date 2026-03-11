@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime , timedelta
 from enums import SeatType, TheaterType, BookingStatus
 
 
@@ -90,6 +90,9 @@ class Movie:
     def add_review(self,review) :
         self.__review.append(review)
 
+    @property
+    def duration(self) :
+        return self.__duration
 
 class ShowtimeSeat(Seat):
     def __init__(self, seat: Seat, status: BookingStatus):
@@ -106,14 +109,13 @@ class Showtime:
 
     def __init__(self, showtime_id: str, movie: Movie, theater: Theater,
                  status: str, subtitle: str,
-                 start_time: datetime, end_time: datetime, base_price: float):
+                 start_time: datetime, base_price: float):
         self.__id            = showtime_id
         self.__movie         = movie
         self.__theater       = theater
         self.__status        = status
         self.__subtitle      = subtitle
         self.__start_time    = start_time
-        self.__end_time      = end_time
         self.__base_price    = base_price
         self.__showtime_seat: List[ShowtimeSeat] = []
 
@@ -147,7 +149,7 @@ class Showtime:
 
     @property
     def end_time(self) -> datetime:
-        return self.__end_time
+        return self.__start_time + timedelta(minutes=self.__movie.duration)
 
     def is_upcoming(self) -> bool:
         return self.__start_time >= datetime.now()
