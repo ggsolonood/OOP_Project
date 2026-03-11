@@ -200,6 +200,10 @@ class JamorCineplex:
     # ── admin process ──
 
     def process_create_cineplex(self, name: str):
+        # ห้ามชื่อซ้ำ (case-insensitive)
+        for c in self.__cineplex_list:
+            if c.get_cineplex_name().lower() == name.strip().lower():
+                return False, f"Cineplex name '{name}' already exists."
         cineplex_id = f"CPX-{self.__cineplex_counter:04d}"
         self.__cineplex_counter += 1
         self.__cineplex_list.append(Cineplex(cineplex_id, name))
@@ -209,6 +213,10 @@ class JamorCineplex:
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
+        # ห้ามชื่อหนังซ้ำใน cineplex เดียวกัน
+        for m in cineplex.movies_list:
+            if m.name.lower() == name.strip().lower():
+                return False, f"Movie '{name}' already exists in this cineplex."
         movie_id = f"MOV-{self.__movie_counter:04d}"
         self.__movie_counter += 1
         cineplex.add_movie(Movie(movie_id, name, duration, genre, age_rating))
@@ -218,6 +226,7 @@ class JamorCineplex:
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
+        # theater_id ใช้ counter ของ cineplex นั้นๆ → ต่างกัน cineplex ซ้ำกันได้
         theater_id = f"THT-{self.__theater_counter:04d}"
         self.__theater_counter += 1
         try:
@@ -228,12 +237,15 @@ class JamorCineplex:
 
     def process_create_seat(self, cineplex_id: str, theater_id: str,
                             seat_number: str, type_seat: str):
+        """สร้าง seat เดี่ยว (ใช้ภายใน / backward-compat)"""
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
         theater = cineplex.search_theater_by_id(theater_id)
         if not theater:
             return False, "Theater not found."
+        if theater.search_seat_by_no(seat_number):
+            return False, f"Seat number '{seat_number}' already exists in this theater."
         seat_id = f"ST-{self.__seat_counter:04d}"
         self.__seat_counter += 1
         try:
@@ -242,6 +254,41 @@ class JamorCineplex:
         except ValueError as e:
             return False, str(e)
         return True, {"message": "Seat created successfully.", "seat_id": seat_id}
+
+    def process_create_seats_bulk(self, cineplex_id: str, theater_id: str,
+                                  seats: list):
+        """
+        สร้าง seat หลายที่นั่งพร้อมกัน
+        seats: list of {"seat_number": str, "type_seat": str}
+        คืน: (True, {created:[...], failed:[...]}) หรือ (False, error_str)
+        """
+        from enums import SeatType
+        cineplex = self.search_cineplex_by_id(cineplex_id)
+        if not cineplex:
+            return False, "Cineplex not found."
+        theater = cineplex.search_theater_by_id(theater_id)
+        if not theater:
+            return False, "Theater not found."
+
+        created = []
+        failed  = []
+        for item in seats:
+            seat_number = item.get("seat_number", "")
+            type_seat   = item.get("type_seat", "")
+            if theater.search_seat_by_no(seat_number):
+                failed.append({"seat_number": seat_number, "reason": "Already exists"})
+                continue
+            try:
+                seat_type = SeatType.from_str(type_seat)
+            except ValueError as e:
+                failed.append({"seat_number": seat_number, "reason": str(e)})
+                continue
+            seat_id = f"ST-{self.__seat_counter:04d}"
+            self.__seat_counter += 1
+            theater.add_seat(Seat(seat_id, seat_number, seat_type))
+            created.append({"seat_id": seat_id, "seat_number": seat_number, "type_seat": type_seat})
+
+        return True, {"created": created, "failed": failed}
 
     def process_create_showtime(self, cineplex_id, movie_id, theater_id,
                                 status, subtitle, start_time, end_time, base_price):
@@ -351,6 +398,66 @@ class JamorCineplex:
             }
 
         return False, "System error during point deduction."
+
+    # ── monthly coupon process ──
+
+    def process_get_monthly_coupon(self, user_id: str):
+        """
+        User รับคูปองส่วนลดรายเดือนได้ 1 ครั้ง/เดือน
+        คืน: (success, message, data)
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+        if user.tier == MemberTier.GUEST:
+            return False, "Guest members cannot receive monthly coupon. Please register first.", None
+
+        current_ym = datetime.now().strftime("%Y-%m")
+        if user.get_last_monthly_coupon() == current_ym:
+            return False, f"You have already received the monthly coupon for {current_ym}.", None
+
+        # สร้าง coupon ส่วนลดรายเดือน (50 บาท) อายุถึงสิ้นเดือน
+        import calendar
+        now = datetime.now()
+        last_day = calendar.monthrange(now.year, now.month)[1]
+        last_date_str = f"{now.year}-{now.month:02d}-{last_day:02d} 23:59"
+
+        success, result = self.process_create_coupon(
+            "discount",
+            f"Monthly Coupon {current_ym} ({user.name})",
+            discount=50.0,
+            last_date=last_date_str,
+        )
+        if not success:
+            return False, "Failed to create coupon.", None
+
+        user.set_last_monthly_coupon(current_ym)
+        coupon_id = result["coupon_id"]
+        return True, "Monthly coupon received successfully.", {
+            "coupon_id":    coupon_id,
+            "discount":     50,
+            "valid_until":  last_date_str,
+            "month":        current_ym,
+        }
+
+    # ── showtime seat query ──
+
+    def process_get_available_seats(self, cineplex_id: str, showtime_id: str):
+        cineplex = self.search_cineplex_by_id(cineplex_id)
+        if not cineplex:
+            return False, "Cineplex not found.", None
+        showtime = cineplex.search_showtime_by_id(showtime_id)
+        if not showtime:
+            return False, "Showtime not found.", None
+
+        available = showtime.get_available_seats()
+        return True, "OK", {
+            "showtime_id":  showtime_id,
+            "movie":        showtime.movie.name,
+            "start_time":   showtime.start_time.strftime(Showtime.DT_FORMAT),
+            "total_available": len(available),
+            "seats":        available,
+        }
 
     # ── booking process ──
 
