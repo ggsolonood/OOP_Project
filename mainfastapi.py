@@ -1,6 +1,13 @@
 from fastapi import FastAPI
-from routes import admin_router, store_router, booking_router, user_router, movie_router
 import uvicorn
+
+from routes import (
+    movie_router,
+    admin_router,
+    store_router,
+    booking_router,
+    user_router,
+)
 
 app = FastAPI(
     title="JamorCineplex API",

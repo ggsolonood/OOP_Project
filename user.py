@@ -1,8 +1,42 @@
-from datetime import datetime
 from typing import List, Optional
-from enums import BookingStatus, MemberTier
-from theater import Showtime, ShowtimeSeat, Movie, Theater
+from datetime import datetime
+from enums import MemberTier, BookingStatus
+from theater import Showtime, Movie, Theater, ShowtimeSeat
 
+
+# ── Reward ────────────────────────────────────────────────────────────────
+
+class Reward:
+    def __init__(self, reward_id: str, name: str, point_cost: int, stock: int):
+        self.__reward_id  = reward_id
+        self.__name       = name
+        self.__point_cost = point_cost
+        self.__stock      = stock
+
+    @property
+    def id(self) -> str:
+        return self.__reward_id
+
+    @property
+    def name(self) -> str:
+        return self.__name
+
+    @property
+    def point_cost(self) -> int:
+        return self.__point_cost
+
+    @property
+    def stock(self) -> int:
+        return self.__stock
+
+    def decrease_stock(self) -> bool:
+        if self.__stock > 0:
+            self.__stock -= 1
+            return True
+        return False
+
+
+# ── Booking ───────────────────────────────────────────────────────────────
 
 class Booking:
     def __init__(self, booking_id: str, user, showtime: Showtime,
@@ -17,27 +51,47 @@ class Booking:
         self.__total_price   = total_price
 
     @property
-    def id(self) -> str:                          return self.__booking_id
+    def id(self) -> str:
+        return self.__booking_id
+
     @property
-    def showtime(self) -> Showtime:               return self.__showtime
+    def showtime(self) -> Showtime:
+        return self.__showtime
+
     @property
-    def status(self) -> BookingStatus:            return self.__status
+    def status(self) -> BookingStatus:
+        return self.__status
+
     @property
-    def showtime_seat(self) -> List[ShowtimeSeat]: return self.__showtime_seat
+    def showtime_seat(self) -> List[ShowtimeSeat]:
+        return self.__showtime_seat
+
     @property
-    def total_price(self) -> float:               return self.__total_price
+    def total_price(self) -> float:
+        return self.__total_price
+
     @property
-    def ticket(self):                             return self.__ticket
+    def ticket(self):
+        return self.__ticket
 
     @showtime_seat.setter
-    def showtime_seat(self, seats): self.__showtime_seat = seats
-    @total_price.setter
-    def total_price(self, price):   self.__total_price = price
-    @status.setter
-    def status(self, stat):         self.__status = stat
-    @ticket.setter
-    def ticket(self, tk):           self.__ticket = tk
+    def showtime_seat(self, seats):
+        self.__showtime_seat = seats
 
+    @total_price.setter
+    def total_price(self, price):
+        self.__total_price = price
+
+    @status.setter
+    def status(self, stat):
+        self.__status = stat
+
+    @ticket.setter
+    def ticket(self, tk):
+        self.__ticket = tk
+
+
+# ── Ticket ────────────────────────────────────────────────────────────────
 
 class Ticket:
     def __init__(self, booking: Booking, cineplex, user, movie: Movie,
@@ -50,6 +104,8 @@ class Ticket:
         self.__showtime = showtime
         self.seat_list  = seat_list
 
+
+# ── User ──────────────────────────────────────────────────────────────────
 
 class User:
     def __init__(self, id: str, name: str, email: str = "", phone_number: str = "",
@@ -68,35 +124,55 @@ class User:
         self.__type_user      = MemberTier.GUEST
 
     @property
-    def id(self) -> str:                     return self.__id
-    @property
-    def name(self) -> str:                   return self.__name
-    @property
-    def booking_list(self) -> List[Booking]: return self.__booking_list
-    @property
-    def tier(self) -> MemberTier:            return self.__type_user
+    def id(self) -> str:
+        return self.__id
 
-    def get_member_id(self) -> str:    return self.__id
-    def get_discount(self) -> float:   return self.__type_user.get_discount()
-    def get_point(self) -> int:        return self.__point
-    def add_point(self, p: int):       self.__point += p
-    def add_booking(self, b: Booking): self.__booking_list.append(b)
-    def add_ticket(self, t: Ticket):   self.__ticket_list.append(t)
+    @property
+    def name(self) -> str:
+        return self.__name
+
+    @property
+    def booking_list(self) -> List[Booking]:
+        return self.__booking_list
+
+    @property
+    def tier(self) -> MemberTier:
+        return self.__type_user
+
+    def get_member_id(self) -> str:
+        return self.__id
+
+    def get_discount(self) -> float:
+        return self.__type_user.get_discount()
+
+    def get_point(self) -> int:
+        return self.__point
+
+    def add_point(self, p: int):
+        self.__point += p
+
+    def deduct_point(self, p: int) -> bool:
+        if self.__point >= p:
+            self.__point -= p
+            return True
+        return False
+
+    def add_booking(self, b: Booking):
+        self.__booking_list.append(b)
+
+    def add_ticket(self, t: Ticket):
+        self.__ticket_list.append(t)
 
     def add_password(self, password: str):
-        """ตั้ง/เปลี่ยน password"""
         self.__password = password
 
     def check_password(self, password: str) -> bool:
-        """ตรวจสอบ password — True ถ้าตรง"""
         return self.__password == password
 
     def has_password(self) -> bool:
-        """True ถ้ามี password ตั้งไว้แล้ว"""
         return bool(self.__password)
 
     def change_type(self, tier: MemberTier):
-        """เปลี่ยน tier โดยตรง (alias ของ set_tier)"""
         self.__type_user = tier
 
     def set_tier(self, tier: MemberTier):

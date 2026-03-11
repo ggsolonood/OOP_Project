@@ -8,7 +8,8 @@ class Account:
         self.__balance = balance
         self.__id      = account_id
 
-    def get_id(self) -> str: return self.__id
+    def get_id(self) -> str:
+        return self.__id
 
     def decrease_balance(self, amount: float) -> bool:
         if self.__balance >= amount:
@@ -27,10 +28,11 @@ class Bank:
         self.__account_list: List[Account] = []
 
     @property
-    def name(self) -> str: return self.__name
+    def name(self) -> str:
+        return self.__name
 
     def create_account(self, name: str, account_id: str, balance: float) -> Account:
-        account = Account(name, balance, account_id)
+        account = Account(name, account_id, balance)
         self.__account_list.append(account)
         return account
 
@@ -57,6 +59,10 @@ class PaymentGateway:
     def pay(self, bank: Bank) -> bool:
         return bank.payment(self.__account_id, self.__amount)
 
+    def pay_direct(self) -> bool:
+        """จ่ายเงินโดยไม่ผ่าน Bank — คืน True เสมอ (สำหรับระบบที่ไม่มี Bank)"""
+        return True
+
 
 class Order:
     def __init__(self, order_id: str, goods_name: str, values: int,
@@ -71,7 +77,8 @@ class Order:
         self.__coupon_id  = coupon_id
         self.__status     = status
 
-    def get_order_id(self) -> str: return self.__order_id
+    def get_order_id(self) -> str:
+        return self.__order_id
 
     def get_status(self) -> str:
         return self.__status.value if isinstance(self.__status, OrderStatus) else self.__status

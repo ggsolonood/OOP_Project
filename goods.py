@@ -18,13 +18,18 @@ class Goods:
         return cls(name, values, price, GoodsType.from_str(type_str), flavor)
 
     @property
-    def goods_type(self) -> GoodsType: return self.__goods_type
+    def goods_type(self) -> GoodsType:
+        return self.__goods_type
 
     @property
-    def flavor(self) -> Optional[str]: return self.__flavor
+    def flavor(self) -> Optional[str]:
+        return self.__flavor
 
-    def get_name(self) -> str:    return self.__name
-    def get_price(self) -> float: return self.__price
+    def get_name(self) -> str:
+        return self.__name
+
+    def get_price(self) -> float:
+        return self.__price
 
     def check_values(self, amount_needed: int) -> bool:
         return self.__values >= amount_needed

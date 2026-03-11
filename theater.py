@@ -1,5 +1,5 @@
-from datetime import datetime
 from typing import List, Optional
+from datetime import datetime
 from enums import SeatType, TheaterType, BookingStatus
 
 
@@ -11,11 +11,16 @@ class Seat:
                               else SeatType.from_str(str(type_seat)))
 
     @property
-    def id(self) -> str:             return self.__seat_id
+    def id(self) -> str:
+        return self.__seat_id
+
     @property
-    def seat_number(self) -> str:    return self.__seat_number
+    def seat_number(self) -> str:
+        return self.__seat_number
+
     @property
-    def type_seat(self) -> SeatType: return self.__type_seat
+    def type_seat(self) -> SeatType:
+        return self.__type_seat
 
 
 class Theater:
@@ -31,11 +36,16 @@ class Theater:
         return cls(theater_id, TheaterType.from_str(type_str))
 
     @property
-    def id(self) -> str:                   return self.__theater_id
+    def id(self) -> str:
+        return self.__theater_id
+
     @property
-    def type_theater(self) -> TheaterType: return self.__type_theater
+    def type_theater(self) -> TheaterType:
+        return self.__type_theater
+
     @property
-    def showtime_list(self) -> list:       return self.__showtime_list
+    def showtime_list(self) -> list:
+        return self.__showtime_list
 
     def add_seat(self, seat: Seat):
         self.__seats_list.append(seat)
@@ -65,9 +75,12 @@ class Movie:
         self.__age_rating = age_rating
 
     @property
-    def id(self) -> str:   return self.__movie_id
+    def id(self) -> str:
+        return self.__movie_id
+
     @property
-    def name(self) -> str: return self.__movie_name
+    def name(self) -> str:
+        return self.__movie_name
 
 
 class ShowtimeSeat(Seat):
@@ -76,7 +89,8 @@ class ShowtimeSeat(Seat):
         self.__status = status
 
     @property
-    def status(self) -> BookingStatus: return self.__status
+    def status(self) -> BookingStatus:
+        return self.__status
 
 
 class Showtime:
@@ -96,21 +110,36 @@ class Showtime:
         self.__showtime_seat: List[ShowtimeSeat] = []
 
     @property
-    def id(self) -> str:              return self.__id
+    def id(self) -> str:
+        return self.__id
+
     @property
-    def movie(self) -> Movie:         return self.__movie
+    def movie(self) -> Movie:
+        return self.__movie
+
     @property
-    def theater(self) -> Theater:     return self.__theater
+    def theater(self) -> Theater:
+        return self.__theater
+
     @property
-    def status(self) -> str:          return self.__status
+    def status(self) -> str:
+        return self.__status
+
     @property
-    def subtitle(self) -> str:        return self.__subtitle
+    def subtitle(self) -> str:
+        return self.__subtitle
+
     @property
-    def base_price(self) -> float:    return self.__base_price
+    def base_price(self) -> float:
+        return self.__base_price
+
     @property
-    def start_time(self) -> datetime: return self.__start_time
+    def start_time(self) -> datetime:
+        return self.__start_time
+
     @property
-    def end_time(self) -> datetime:   return self.__end_time
+    def end_time(self) -> datetime:
+        return self.__end_time
 
     def is_upcoming(self) -> bool:
         return self.__start_time >= datetime.now()
