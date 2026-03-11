@@ -2,8 +2,11 @@ from datetime import datetime
 from enums import SeatType, MemberTier
 from theater import Movie, Theater, Seat, Showtime
 from cineplex import Cineplex, JamorCineplex
+from payment import Bank
 
-system = JamorCineplex()
+bank = Bank("KrungThai")
+bank.create_account("Popo","13579",1000)
+system = JamorCineplex(bank)
 
 # ── Cineplex C – goods only ────────────────────────────────────────────────
 cineplex_c = Cineplex("CPX_C", "C")

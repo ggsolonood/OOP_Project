@@ -32,11 +32,11 @@ class Bank:
         return self.__name
 
     def create_account(self, name: str, account_id: str, balance: float) -> Account:
-        account = Account(name, account_id, balance)
+        account = Account(name, balance,account_id)
         self.__account_list.append(account)
         return account
 
-    def _find_account(self, account_id: str) -> Optional[Account]:
+    def _find_account(self, account_id: str) :
         for acc in self.__account_list:
             if acc.get_id() == account_id:
                 return acc
@@ -44,25 +44,21 @@ class Bank:
 
     def payment(self, account_id: str, amount: float) -> bool:
         account = self._find_account(account_id)
-        return account.decrease_balance(amount) if account else False
-
+        if not account : return "Account not found"
+        return account.decrease_balance(amount) 
+    
     def refund(self, account_id: str, amount: float) -> bool:
         account = self._find_account(account_id)
         return account.increase_balance(amount) if account else False
 
-
 class PaymentGateway:
-    def __init__(self, account_id: str, amount: float):
+    def __init__(self, account_id: str, amount: float, bank:str):
         self.__account_id = account_id
         self.__amount     = amount
+        self.__bank = bank
 
-    def pay(self, bank: Bank) -> bool:
-        return bank.payment(self.__account_id, self.__amount)
-
-    def pay_direct(self) -> bool:
-        """จ่ายเงินโดยไม่ผ่าน Bank — คืน True เสมอ (สำหรับระบบที่ไม่มี Bank)"""
-        return True
-
+    def pay(self) -> bool:
+        return self.__bank.payment(self.__account_id, self.__amount)
 
 class Order:
     def __init__(self, order_id: str, goods_name: str, values: int,

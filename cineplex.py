@@ -128,7 +128,7 @@ class Cineplex:
 # ── JamorCineplex ─────────────────────────────────────────────────────────
 
 class JamorCineplex:
-    def __init__(self):
+    def __init__(self,bank):
         self.__cineplex_list: List[Cineplex] = []
         self.__user_list:     List[User]     = []
         self.__booking_list:  List[Booking]  = []
@@ -136,6 +136,7 @@ class JamorCineplex:
         self.__coupon_list:   List[Coupon]   = []
         self.__ticket_list:   List[Ticket]   = []
         self.__reward_list:   List[Reward]   = []
+        self.__bank = bank
 
         # Counters for Auto-Generate ID
         self.__cineplex_counter = 1
@@ -549,7 +550,8 @@ class JamorCineplex:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
         total  = booking.total_price
-        result = PaymentGateway(account_id, total).pay_direct()
+        result = PaymentGateway(account_id, total, self.__bank).pay()
+        if result == "Account not found" : return False , result
         if not result:
             return False, "Failed: Insufficient balance"
 
@@ -654,8 +656,8 @@ class JamorCineplex:
         self.__order_counter += 1
 
         order   = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
-        gateway = PaymentGateway(account_id, total_price)
-        if gateway.pay_direct():
+        gateway = PaymentGateway(account_id, total_price,self.__bank)
+        if gateway.pay():
             target_good.clearstock(values)
             self.__order_list.append(order)
             return True, {"order_id": order_id, "total_paid": total_price}
