@@ -109,7 +109,8 @@ class Showtime:
 
     def __init__(self, showtime_id: str, movie: Movie, theater: Theater,
                  status: str, subtitle: str,
-                 start_time: datetime, base_price: float):
+                 start_time: datetime, base_price: float,
+                 end_time: datetime = None):
         self.__id            = showtime_id
         self.__movie         = movie
         self.__theater       = theater
@@ -118,6 +119,14 @@ class Showtime:
         self.__start_time    = start_time
         self.__base_price    = base_price
         self.__showtime_seat: List[ShowtimeSeat] = []
+        self.__end_time      = (end_time if end_time is not None
+                                else start_time + timedelta(minutes=movie.duration))
+
+    # ... properties เหมือนเดิม ...
+
+    @property
+    def end_time(self) -> datetime:
+        return self.__end_time   # ✅ ใช้ค่าที่เก็บไว้จริง
 
     @property
     def id(self) -> str:

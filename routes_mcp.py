@@ -99,34 +99,55 @@ def _require_admin(admin_id: str) -> Optional[str]:
 # ═══════════════════════════════════════════════════════════════════════════
 
 @mcp.tool()
-def admin_get_all_showtimes(admin_id: str) -> dict:
+def admin_create_showtime(
+    admin_id: str,
+    cineplex_id: str,
+    movie_id: str,
+    theater_id: str,
+    status: str,
+    subtitle: str,
+    start_time: str,
+    base_price: float,
+    duration_minutes: int = None,
+    end_time: str = None
+) -> dict:
     """
-    (Admin) ดูรอบฉายที่ยังไม่เริ่มทั้งหมดในระบบ
+    (Admin) สร้างรอบฉายใหม่ (Create Showtime)
 
     Args:
         admin_id: รหัส admin
+        cineplex_id: รหัสสาขา (Cineplex)
+        movie_id: รหัสภาพยนตร์
+        theater_id: รหัสโรงฉาย (Theater)
+        status: สถานะรอบฉาย (เช่น Active, Cancelled)
+        subtitle: ระบบคำบรรยาย (เช่น TH/EN)
+        start_time: เวลาเริ่มฉาย (รูปแบบ YYYY-MM-DD HH:MM)
+        base_price: ราคาพื้นฐาน (ตัวเลข)
+        duration_minutes: (Optional) ความยาวภาพยนตร์เป็นนาที
+        end_time: (Optional) เวลาจบฉาย (รูปแบบ YYYY-MM-DD HH:MM)
     """
-    if err := _require_admin(admin_id): return {"error": err}
-    now    = datetime.now()
-    result = []
-    for cineplex in system.cineplex_list:
-        for showtime in cineplex.showtime_list:
-            if showtime.is_upcoming():
-                result.append({
-                    "cineplex_name": cineplex.get_cineplex_name(),
-                    "showtime_id":   showtime.id,
-                    "movie_name":    showtime.movie.name,
-                    "theater_id":    showtime.theater.id,
-                    "theater_type":  showtime.theater.type_theater.value,
-                    "start_time":    showtime.start_time.strftime(Showtime.DT_FORMAT),
-                    "end_time":      showtime.end_time.strftime(Showtime.DT_FORMAT),
-                    "price":         showtime.base_price,
-                })
-    return {
-        "current_datetime": now.strftime(Showtime.DT_FORMAT),
-        "total_available":  len(result),
-        "showtimes":        result,
-    }
+    # 1. เช็คสิทธิ์ Admin ก่อนทำงาน
+    if err := _require_admin(admin_id): 
+        return {"error": err}
+
+    # 2. ส่งข้อมูลไปให้ Logic หลังบ้านทำงาน (สมมติว่าตัวแปรระบบของคุณชื่อ system)
+    success, result = system.process_create_showtime(
+        cineplex_id=cineplex_id,
+        movie_id=movie_id,
+        theater_id=theater_id,
+        status=status,
+        subtitle=subtitle,
+        start_time=start_time,
+        base_price=base_price,
+        duration_minutes=duration_minutes,
+        end_time=end_time
+    )
+
+    # 3. จัดการผลลัพธ์ที่ได้กลับมา
+    if success:
+        return result # ถ้าสำเร็จ result จะเป็น dict: {"message": "...", "showtime_id": "..."}
+    else:
+        return {"error": result} # ถ้าไม่สำเร็จ result จะเป็นข้อความ error
 
 
 @mcp.tool()

@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime , timedelta
 from enums import BookingStatus, MemberTier, OrderStatus
 from goods import Goods
 from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat
@@ -328,8 +328,9 @@ class JamorCineplex:
 
         return True, {"created": created, "failed": failed}
 
-    def process_create_showtime(self, cineplex_id, movie_id, theater_id,
-                                status, subtitle, start_time, duration_minutes, base_price):
+    def process_create_showtime(self, cineplex_id, movie_id, theater_id, status,
+                             subtitle, start_time, base_price,
+                             duration_minutes=None, end_time=None):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
@@ -343,33 +344,48 @@ class JamorCineplex:
         try:
             dt_start = datetime.strptime(start_time, Showtime.DT_FORMAT)
         except ValueError:
-            return False, f"Invalid datetime format. Use '{Showtime.DT_FORMAT}' (e.g. '2026-03-11 14:30')"
+            return False, f"Invalid start_time format. Use '{Showtime.DT_FORMAT}'"
 
-        if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
-            return False, "duration_minutes must be a positive number"
+        if end_time:
+            try:
+                dt_end = datetime.strptime(end_time, Showtime.DT_FORMAT)
+            except ValueError:
+                return False, f"Invalid end_time format. Use '{Showtime.DT_FORMAT}'"
+            if dt_end <= dt_start:
+                return False, "end_time must be after start_time."
+        elif duration_minutes is not None:
+            if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
+                return False, "duration_minutes must be a positive number."
+            dt_end = dt_start + timedelta(minutes=duration_minutes)
+        else:
+            return False, "Must provide either 'duration_minutes' or 'end_time'."
 
-        from datetime import timedelta
-        dt_end = dt_start + timedelta(minutes=duration_minutes)
-
+        # ✅ has_conflict ตรวจเฉพาะ theater นั้น ๆ — คนละ theater ไม่กระทบกัน
         if theater.has_conflict(dt_start, dt_end):
             conflict = next(
                 st for st in theater.showtime_list
                 if dt_start < st.end_time and dt_end > st.start_time
             )
             return False, (
-                f"Time conflict in Theater '{theater_id}': "
+                f"Time conflict in theater '{theater_id}': "
                 f"showtime '{conflict.id}' "
                 f"({conflict.start_time.strftime(Showtime.DT_FORMAT)}"
-                f" – {conflict.end_time.strftime(Showtime.DT_FORMAT)}) "
-                f"overlaps with the requested slot."
+                f" – {conflict.end_time.strftime(Showtime.DT_FORMAT)})"
+                f" overlaps with the requested slot "
+                f"({dt_start.strftime(Showtime.DT_FORMAT)}"
+                f" – {dt_end.strftime(Showtime.DT_FORMAT)})."
             )
 
-        showtime_id = f"STIME-{self.__showtime_counter:04d}"
+        showtime_id  = f"STIME-{self.__showtime_counter:04d}"
         self.__showtime_counter += 1
-        new_showtime = Showtime(showtime_id, movie, theater, status, subtitle,
-                                dt_start, dt_end, base_price)
+
+        new_showtime = Showtime(
+            showtime_id, movie, theater, status, subtitle,
+            dt_start, base_price,
+            end_time=dt_end,          # ✅ ส่ง end_time จริงไปเก็บ
+        )
         cineplex.add_showtime(new_showtime)
-        theater.add_showtime(new_showtime)
+        theater.add_showtime(new_showtime)   # ✅ ต้องมีทั้งสองบรรทัด!
         return True, {"message": "Showtime created successfully.", "showtime_id": showtime_id}
 
     def process_create_coupon(self, coupon_type, name, discount=0.0,
@@ -893,6 +909,10 @@ class JamorCineplex:
         for cineplex in self.__cineplex_list:
             for showtime in cineplex.showtime_list:
                 if keyword in showtime.movie.name.lower():
+                    try:
+                        end_time_str = showtime.end_time.strftime(Showtime.DT_FORMAT)
+                    except Exception:
+                        end_time_str = "N/A"
                     result.append({
                         "cineplex_name": cineplex.get_cineplex_name(),
                         "showtime_id":   showtime.id,
@@ -902,7 +922,7 @@ class JamorCineplex:
                         "theater_type":  showtime.theater.type_theater.value,
                         "subtitle":      showtime.subtitle,
                         "start_time":    showtime.start_time.strftime(Showtime.DT_FORMAT),
-                        "end_time":      showtime.end_time.strftime(Showtime.DT_FORMAT),
+                        "end_time":      end_time_str,
                         "base_price":    showtime.base_price,
                         "status":        showtime.status,
                     })
