@@ -47,6 +47,10 @@ class Theater:
     def showtime_list(self) -> list:
         return self.__showtime_list
 
+    @property
+    def seats_list(self) -> List[Seat]:
+        return self.__seats_list
+
     def add_seat(self, seat: Seat):
         self.__seats_list.append(seat)
 
@@ -147,6 +151,21 @@ class Showtime:
 
     def is_upcoming(self) -> bool:
         return self.__start_time >= datetime.now()
+
+    def get_booked_seat_numbers(self) -> List[str]:
+        return [s.seat_number for s in self.__showtime_seat]
+
+    def get_available_seats(self) -> List[dict]:
+        booked = self.get_booked_seat_numbers()
+        return [
+            {
+                "seat_number": s.seat_number,
+                "type":        s.type_seat.value,
+                "price":       s.type_seat.get_price(),
+            }
+            for s in self.__theater.seats_list
+            if s.seat_number not in booked
+        ]
 
     def is_seat_available(self, seat_no: str) -> bool:
         for s in self.__showtime_seat:
