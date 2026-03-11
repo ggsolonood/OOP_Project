@@ -321,7 +321,7 @@ class JamorCineplex:
         return True, {"created": created, "failed": failed}
 
     def process_create_showtime(self, cineplex_id, movie_id, theater_id,
-                                status, subtitle, start_time, end_time, base_price):
+                                status, subtitle, start_time, base_price):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
@@ -357,7 +357,7 @@ class JamorCineplex:
         showtime_id = f"STIME-{self.__showtime_counter:04d}"
         self.__showtime_counter += 1
         new_showtime = Showtime(showtime_id, movie, theater, status, subtitle,
-                                dt_start, dt_end, base_price)
+                                dt_start, base_price)
         cineplex.add_showtime(new_showtime)
         theater.add_showtime(new_showtime)
         return True, {"message": "Showtime created successfully.", "showtime_id": showtime_id}
