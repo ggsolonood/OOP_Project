@@ -695,3 +695,21 @@ def login_user(user_id: str, password: str) -> dict:
     if not success:
         return {"error": result}
     return result
+
+@mcp.tool()
+def review_movie(
+    user_id: str, 
+    booking_id: str, 
+    star: int, 
+    comment: str
+) -> str:
+    """
+    ส่งรีวิวหนังหลังจากที่รับชมเสร็จแล้ว
+    """
+    # เรียกใช้ Logic เดิมจากระบบของคุณ
+    success, msg = system.process_review_movie(user_id, booking_id, star, comment)
+    
+    if not success:
+        return f"Error: {msg}"
+    
+    return f"Success: {msg}"

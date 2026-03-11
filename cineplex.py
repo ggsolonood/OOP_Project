@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime , timedelta
 from enums import BookingStatus, MemberTier, OrderStatus
 from goods import Goods
-from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat
+from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat , Review
 from payment import Bank, Order
 from user import Booking, Ticket, User, Reward
 
