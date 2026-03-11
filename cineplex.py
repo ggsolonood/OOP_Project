@@ -759,7 +759,7 @@ class JamorCineplex:
             if booking_list:
                 return True, "This is your booking history.", booking_list
             else:
-                return True, "You have never made a booking.", None
+                return True, "You have never made a booking.", booking_list
         else:
             return False, "User not found.", None
 
@@ -805,10 +805,13 @@ class JamorCineplex:
             if user :
                 booking = user.search_booking_by_id(booking_id)
                 if booking :
-                    movie = booking.showtime.movie
-                    review = Review(star,comment,user.name)
-                    movie.add_review(review)
-                    return True , "Review success"
+                    if booking.status == BookingStatus.COMPLETED :
+                        movie = booking.showtime.movie
+                        review = Review(star,comment,user.name)
+                        movie.add_review(review)
+                        return True , "Review success"
+                    else :
+                        return False , "You haven't watch the movie"
                 else :
                     return False , "Booking not found"
             else :
