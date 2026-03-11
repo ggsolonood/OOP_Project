@@ -8,7 +8,7 @@ from enums import BookingStatus
 from schemas import (
     CineplexCreate, MovieCreate, TheaterCreate, SeatCreate, SeatsBulkCreate, ShowtimeCreate,
     CouponCreate, BookingCreate, BookingChangeSeats,
-    RewardCreate, RewardExchange,
+    RewardCreate, RewardExchange, GuestCreate, RegisterMember,
 )
 
 admin_router   = APIRouter(prefix="/admin",   tags=["Cinema Management"])
@@ -31,6 +31,15 @@ def get_today_showtimes():
     result = system.process_get_today_showtimes()
     today  = datetime.now().strftime("%Y-%m-%d")
     return {"date": today, "total": len(result), "showtimes": result}
+
+
+@movie_router.get("/showtimes/date")
+def get_showtimes_by_date(date: str = Query(..., description="วันที่ต้องการดู รูปแบบ YYYY-MM-DD เช่น 2026-03-11")):
+    """ดูรอบฉายของวันที่ระบุ (วันไหนก็ได้)"""
+    success, msg, result = system.process_get_showtimes_by_date(date)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"date": date, "total": len(result), "showtimes": result}
 
 
 @movie_router.get("/showtimes/search")
@@ -261,6 +270,31 @@ def get_all_users():
     return {"users": result}
 
 
+# ⚠️ Static routes (/guest, /login) ต้องอยู่ก่อน dynamic routes (/{user_id})
+# มิฉะนั้น FastAPI จะ match "guest" และ "login" เป็น user_id แทน
+
+@user_router.post("/guest")
+def create_guest(body: GuestCreate):
+    """
+    สร้าง User ใหม่แบบ Guest
+    - ต้องการแค่ **name** (email ถ้ามีก็ใส่ได้)
+    - tier = GUEST, ยังไม่มี password
+    - ใช้ user_id ที่ได้รับไปเรียก `/{user_id}/register` เพื่อสมัครสมาชิก
+    """
+    success, result = system.process_register_guest(body.name, body.email)
+    if not success:
+        raise HTTPException(status_code=400, detail=result)
+    return result
+
+
+@user_router.post("/login")
+def login(user_id: str, password: str):
+    success, result = system.process_login(user_id, password)
+    if not success:
+        raise HTTPException(status_code=401, detail=result)
+    return result
+
+
 @user_router.get("/{user_id}/bookings")
 def get_user_bookings(user_id: str, status_filter: Optional[str] = None):
     success, msg, data = system.process_get_booking_history(user_id, status_filter)
@@ -313,23 +347,17 @@ def add_monthly_coupon(user_id: str):
     return {"message": msg, "data": data}
 
 
-@user_router.post("/")
-def register(user_id: str, password: str):
-    success, result = system.process_register(user_id, password)
+@user_router.post("/{user_id}/register")
+def register(user_id: str, body: RegisterMember):
+    """
+    สมัครสมาชิก — เปลี่ยน Guest → Silver
+    - **password**: อย่างน้อย 4 ตัวอักษร (required)
+    - **phone_number**: เบอร์โทร (optional)
+    - **birthday**: วันเกิด รูปแบบ DD-MM-YYYY (optional)
+    """
+    success, result = system.process_register(
+        user_id, body.password, body.phone_number, body.birthday
+    )
     if not success:
         raise HTTPException(status_code=400, detail=result)
     return result
-
-
-@user_router.post("/login")
-def login(user_id: str, password: str):
-    success, result = system.process_login(user_id, password)
-    if not success:
-        raise HTTPException(status_code=401, detail=result)
-    return result
-
-@user_router.post("/{user_id}/review_movie")
-def review_movie(user_id:str,booking_id:str,star:int,comment:str) :
-    success , msg = system.process_review_movie(user_id,booking_id,star,comment)
-    if not success : raise HTTPException(status_code=400 , detail=msg)
-    return  {"message":msg}

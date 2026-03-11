@@ -11,6 +11,9 @@ class Account:
     def get_id(self) -> str:
         return self.__id
 
+    def get_balance(self) -> float:
+        return self.__balance
+
     def decrease_balance(self, amount: float) -> bool:
         if self.__balance >= amount:
             self.__balance -= amount
@@ -32,11 +35,11 @@ class Bank:
         return self.__name
 
     def create_account(self, name: str, account_id: str, balance: float) -> Account:
-        account = Account(name, balance,account_id)
+        account = Account(name, balance, account_id)
         self.__account_list.append(account)
         return account
 
-    def _find_account(self, account_id: str) :
+    def _find_account(self, account_id: str) -> Optional[Account]:
         for acc in self.__account_list:
             if acc.get_id() == account_id:
                 return acc
@@ -44,12 +47,14 @@ class Bank:
 
     def payment(self, account_id: str, amount: float) -> bool:
         account = self._find_account(account_id)
-        if not account : return "Account not found"
-        return account.decrease_balance(amount) 
-    
+        if not account:
+            return False          # bug fix: คืน False แทน string "Account not found"
+        return account.decrease_balance(amount)
+
     def refund(self, account_id: str, amount: float) -> bool:
         account = self._find_account(account_id)
         return account.increase_balance(amount) if account else False
+
 
 class Order:
     def __init__(self, order_id: str, goods_name: str, values: int,

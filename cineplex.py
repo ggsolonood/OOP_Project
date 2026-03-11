@@ -1,9 +1,9 @@
 from typing import List, Optional
 from datetime import datetime
-from enums import BookingStatus, MemberTier
+from enums import BookingStatus, MemberTier, OrderStatus
 from goods import Goods
-from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat , Review
-from payment import Order , Bank
+from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat
+from payment import Bank, Order
 from user import Booking, Ticket, User, Reward
 
 
@@ -128,7 +128,8 @@ class Cineplex:
 # ── JamorCineplex ─────────────────────────────────────────────────────────
 
 class JamorCineplex:
-    def __init__(self,bank: Bank):
+    def __init__(self, bank: Optional[Bank] = None):
+        self.__bank           = bank   # Bank instance (ถ้า None จะใช้ pay_direct)
         self.__cineplex_list: List[Cineplex] = []
         self.__user_list:     List[User]     = []
         self.__booking_list:  List[Booking]  = []
@@ -136,7 +137,6 @@ class JamorCineplex:
         self.__coupon_list:   List[Coupon]   = []
         self.__ticket_list:   List[Ticket]   = []
         self.__reward_list:   List[Reward]   = []
-        self.__bank = bank
 
         # Counters for Auto-Generate ID
         self.__cineplex_counter = 1
@@ -147,7 +147,12 @@ class JamorCineplex:
         self.__coupon_counter   = 1
         self.__order_counter    = 1
         self.__reward_counter   = 1
+        self.__user_counter     = 1
         self.__booking_id       = 0
+
+    @property
+    def bank(self) -> Optional[Bank]:
+        return self.__bank
 
     @property
     def cineplex_list(self) -> List[Cineplex]:
@@ -197,6 +202,30 @@ class JamorCineplex:
         user = User(member_id, name, email or "", phone_number or "", birthday, "")
         user.set_tier(tier)
         self.__user_list.append(user)
+
+    def process_register_guest(self, name: str, email: str = "") -> tuple:
+        """
+        สร้าง User ใหม่แบบ Guest (ยังไม่มี password)
+        ต้องการแค่ name ส่วน email ถ้ามีก็ใส่ได้
+        """
+        # ตรวจ email ซ้ำ (ถ้ามี email)
+        if email:
+            for u in self.__user_list:
+                if u.email and u.email.lower() == email.strip().lower():
+                    return False, "Email already in use."
+
+        user_id = f"USR-{self.__user_counter:04d}"
+        self.__user_counter += 1
+        new_user = User(user_id, name.strip(), email.strip() if email else "")
+        # tier = GUEST โดย default อยู่แล้ว
+        self.__user_list.append(new_user)
+        return True, {
+            "user_id": user_id,
+            "name":    new_user.name,
+            "email":   new_user.email,
+            "tier":    new_user.tier.value,
+            "message": "Guest user created. Use /register to become a member.",
+        }
 
     # ── admin process ──
 
@@ -535,11 +564,9 @@ class JamorCineplex:
             return False, "Booking is already cancelled"
         if booking.status == BookingStatus.COMPLETED:
             return False, "Cannot cancel a completed booking"
-        if booking.status == BookingStatus.CONFIRMED:
-            self.__bank.refund(booking.account, booking.total_price)
         booking.showtime.remove_seats([s.seat_number for s in booking.showtime_seat])
         booking.status = BookingStatus.CANCELLED
-        return True, f"Booking {booking_id} cancelled "
+        return True, f"Booking {booking_id} cancelled (no refund)"
 
     def process_confirm_booking(self, booking_id: str, user_id: str, account_id: str):
         user = self.search_user_by_id(user_id)
@@ -551,13 +578,11 @@ class JamorCineplex:
         if booking.status != BookingStatus.PENDING:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
-        total  = booking.total_price
-        result = self.__bank.payment(account_id, total, self.__bank)
-        if result == "Account not found" : return False , result
+        total   = booking.total_price
+        result  = self.__bank.payment(account_id, total) if self.__bank else True
         if not result:
             return False, "Failed: Insufficient balance"
 
-        booking.account = account_id
         booking.status = BookingStatus.CONFIRMED
         showtime = booking.showtime
         ticket = Ticket(
@@ -658,50 +683,49 @@ class JamorCineplex:
         order_id    = f"ORD-{self.__order_counter:04d}"
         self.__order_counter += 1
 
-        order   = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
-        payment = self.__bank.payment(account_id, total_price)
-        if payment :
+        order  = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
+        result = self.__bank.payment(account_id, total_price) if self.__bank else True
+        if result:
             target_good.clearstock(values)
             self.__order_list.append(order)
             return True, {"order_id": order_id, "total_paid": total_price}
         return False, "Payment failed: Insufficient balance or invalid account."
 
-    def process_cancel_order(self, cineplex_id: str, order_id: str, user_id: str):
-        # 1. ตรวจสอบข้อมูลเบื้องต้น (Guard Clauses)
+    def process_cancel_order(self, cineplex_id, order_id, user_id):
         member = self.search_user_by_id(user_id)
         if not member:
-            return False, "Member not found."
-
+            return False, "Member not found"
         order = self.search_order_by_id(order_id)
         if not order:
-            return False, "Order not found."
-            
-        cineplex = self.search_cineplex_by_id(cineplex_id)
-        if not cineplex:
-            return False, "Cineplex not found."
+            return False, "Order not found"
 
         current_status = order.get_status()
         if current_status == OrderStatus.CANCELLED.value:
-            return False, "Order is already cancelled."
+            return False, "Order is already cancelled"
+        if current_status == OrderStatus.REFUNDED.value:
+            return False, "Order has already been refunded"
 
-        account_id, total_paid = order.get_payment_details()
-
-        payment = self.__bank.refund(account_id,total_paid,self.__bank)
-
-        goods_name, values = order.get_items()
-        goods = cineplex.search_goods_stock(goods_name)
-        if goods:
-            goods.restore_stock(values) 
-
-        cid = order.get_used_coupon()
-        if cid:
-            coupon = next((c for c in self.__coupon_list if c.get_coupon_id() == cid), None)
-            if coupon:
-                coupon.update_status("Available")
-
-        order.update_status(OrderStatus.CANCELLED)
-        
-        return True, f"Cancel success, Refunded {total_paid} THB."
+        if current_status == OrderStatus.COMPLETED.value:
+            account_id, total_paid = order.get_payment_details()
+            # คืนเงิน: ถ้ามี bank ใช้ refund จริง ถ้าไม่มี refund เสมอสำเร็จ
+            refund_ok = self.__bank.refund(account_id, total_paid) if self.__bank else True
+            if refund_ok:
+                goods_name, values = order.get_items()
+                cineplex = self.search_cineplex_by_id(cineplex_id)
+                if cineplex:
+                    g = cineplex.search_goods_stock(goods_name)
+                    if g:
+                        g.restore_stock(values)
+                cid = order.get_used_coupon()
+                if cid:
+                    for c in self.__coupon_list:
+                        if c.get_coupon_id() == cid:
+                            c.update_status("Available")
+                            break
+                order.update_status(OrderStatus.CANCELLED)
+                return True, f"Cancel success, Refund {total_paid} THB"
+            return False, "Refund failed"
+        return False, "Cannot cancel order with current status"
 
     # ── movie / showtime query ──
 
@@ -739,6 +763,34 @@ class JamorCineplex:
                     })
         return result
 
+    def process_get_showtimes_by_date(self, date_str: str):
+        """
+        ดูรอบฉายของวันใดก็ได้
+        date_str: "YYYY-MM-DD"
+        """
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return False, "Invalid date format. Use 'YYYY-MM-DD'", None
+
+        result = []
+        for cineplex in self.__cineplex_list:
+            for showtime in cineplex.showtime_list:
+                if showtime.start_time.date() == target_date:
+                    result.append({
+                        "cineplex_name": cineplex.get_cineplex_name(),
+                        "showtime_id":   showtime.id,
+                        "movie_name":    showtime.movie.name,
+                        "theater_id":    showtime.theater.id,
+                        "theater_type":  showtime.theater.type_theater.value,
+                        "subtitle":      showtime.subtitle,
+                        "start_time":    showtime.start_time.strftime(Showtime.DT_FORMAT),
+                        "end_time":      showtime.end_time.strftime(Showtime.DT_FORMAT),
+                        "base_price":    showtime.base_price,
+                        "status":        showtime.status,
+                    })
+        return True, f"Showtimes on {date_str}", result
+
     def process_get_showtimes_by_movie_name(self, movie_name: str):
         keyword = movie_name.strip().lower()
         result  = []
@@ -767,25 +819,36 @@ class JamorCineplex:
             if booking_list:
                 return True, "This is your booking history.", booking_list
             else:
-                return True, "You have never made a booking.", booking_list
+                return True, "You have never made a booking.", None
         else:
             return False, "User not found.", None
 
     # ── auth process ──
 
-    def process_register(self, user_id: str, password: str) -> tuple:
+    def process_register(self, user_id: str, password: str,
+                         phone_number: str = "", birthday: str = "") -> tuple:
+        """
+        สมัครสมาชิก — เปลี่ยน Guest → Silver
+        รับ phone_number และ birthday เพิ่มเติม (ถ้ามี)
+        """
         user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found"
         if user.has_password():
             return False, "User already registered. Use change password instead."
         if not password or len(password) < 4:
             return False, "Password must be at least 4 characters"
         user.add_password(password)
+        user.set_profile(phone_number=phone_number, birthday=birthday)
         user.change_type(MemberTier.SILVER)
         return True, {
-            "user_id": user_id,
-            "name":    user.name,
-            "tier":    user.tier.value,
-            "message": "Register successful",
+            "user_id":      user_id,
+            "name":         user.name,
+            "email":        user.email,
+            "phone_number": user.phone_number,
+            "birthday":     user.birthday,
+            "tier":         user.tier.value,
+            "message":      "Register successful",
         }
 
     def process_login(self, user_id: str, password: str) -> tuple:
@@ -804,24 +867,4 @@ class JamorCineplex:
             "message": "Login successful",
         }
 
-    def process_review_movie(self,user_id,booking_id,star,comment) :
-            if star not in [1,2,3,4,5] :
-                return False , "Can rate 1 - 5 star only"
-            user = self.search_user_by_id(user_id)
-            if user :
-                booking = user.search_booking_by_id(booking_id)
-                if booking :
-                    if booking.status == BookingStatus.COMPLETED :
-                        movie = booking.showtime.movie
-                        review = Review(star,comment,user.name)
-                        movie.add_review(review)
-                        return True , "Review success"
-                    else :
-                        return False , "You haven't watch the movie"
-                else :
-                    return False , "Booking not found"
-            else :
-                return False , "User not found."
 
-# Fix missing import at top of file
-from enums import OrderStatus
