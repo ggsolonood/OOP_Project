@@ -35,11 +35,11 @@ class Bank:
         return self.__name
 
     def create_account(self, name: str, account_id: str, balance: float) -> Account:
-        account = Account(name, balance, account_id)
+        account = Account(name, balance,account_id)
         self.__account_list.append(account)
         return account
 
-    def _find_account(self, account_id: str) -> Optional[Account]:
+    def _find_account(self, account_id: str) :
         for acc in self.__account_list:
             if acc.get_id() == account_id:
                 return acc
@@ -47,10 +47,9 @@ class Bank:
 
     def payment(self, account_id: str, amount: float) -> bool:
         account = self._find_account(account_id)
-        if not account:
-            return False          # bug fix: คืน False แทน string "Account not found"
-        return account.decrease_balance(amount)
-
+        if not account : return "Account not found"
+        return account.decrease_balance(amount) 
+    
     def refund(self, account_id: str, amount: float) -> bool:
         account = self._find_account(account_id)
         return account.increase_balance(amount) if account else False

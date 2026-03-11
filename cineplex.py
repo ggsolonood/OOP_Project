@@ -642,9 +642,11 @@ class JamorCineplex:
             return False, "Booking is already cancelled"
         if booking.status == BookingStatus.COMPLETED:
             return False, "Cannot cancel a completed booking"
+        if booking.status == BookingStatus.CONFIRMED:
+            self.__bank.refund(booking.account, booking.total_price)
         booking.showtime.remove_seats([s.seat_number for s in booking.showtime_seat])
         booking.status = BookingStatus.CANCELLED
-        return True, f"Booking {booking_id} cancelled (no refund)"
+        return True, f"Booking {booking_id} cancelled "
 
     def process_confirm_booking(self, booking_id: str, user_id: str, account_id: str):
         user = self.search_user_by_id(user_id)
@@ -656,11 +658,13 @@ class JamorCineplex:
         if booking.status != BookingStatus.PENDING:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
-        total   = booking.total_price
-        result  = self.__bank.payment(account_id, total) if self.__bank else True
+        total  = booking.total_price
+        result = self.__bank.payment(account_id, total, self.__bank)
+        if result == "Account not found" : return False , result
         if not result:
             return False, "Failed: Insufficient balance"
 
+        booking.account = account_id
         booking.status = BookingStatus.CONFIRMED
         showtime = booking.showtime
         ticket = Ticket(

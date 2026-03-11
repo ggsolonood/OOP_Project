@@ -40,7 +40,7 @@ class Reward:
 
 class Booking:
     def __init__(self, booking_id: str, user, showtime: Showtime,
-                 timestamp: datetime, status: BookingStatus, total_price: float = 0.0):
+                 timestamp: datetime, status: BookingStatus, total_price: float = 0.0, account_id = None):
         self.__booking_id    = booking_id
         self.__user          = user
         self.__showtime      = showtime
@@ -49,7 +49,15 @@ class Booking:
         self.__showtime_seat: List[ShowtimeSeat] = []
         self.__status        = status
         self.__total_price   = total_price
-
+        self.__account = account_id
+    @property
+    def account(self):
+        return self.__account
+    
+    @account.setter
+    def account(self, account):
+        account = account
+        
     @property
     def id(self) -> str:
         return self.__booking_id
