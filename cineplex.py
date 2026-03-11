@@ -693,7 +693,7 @@ class JamorCineplex:
 
     def process_review_movie(self,user_id,booking_id,star,comment) :
             if star not in [1,2,3,4,5] :
-                return False , "Can rate 1 - 5 star only" , None
+                return False , "Can rate 1 - 5 star only"
             user = self.search_user_by_id(user_id)
             if user :
                 booking = user.search_booking_by_id(booking_id)
