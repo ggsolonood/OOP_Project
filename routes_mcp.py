@@ -425,7 +425,7 @@ def cancel_order(cineplex_id: str, order_id: str, user_id: str) -> dict:
 @mcp.tool()
 def exchange_reward(user_id: str, reward_id: str) -> dict:
     """
-    แลกของรางวัลด้วยคะแนนสะสม
+    แลกของรางวัลด้วยคะแนนสะสม — Guest ไม่สามารถใช้งานได้
 
     Args:
         user_id:   รหัสผู้ใช้
@@ -435,6 +435,20 @@ def exchange_reward(user_id: str, reward_id: str) -> dict:
     if not success:
         return {"error": msg}
     return msg
+
+
+@mcp.tool()
+def get_reward_history(user_id: str) -> dict:
+    """
+    ดูประวัติการแลกของรางวัลทั้งหมดของ user — Guest ไม่สามารถใช้งานได้
+
+    Args:
+        user_id: รหัสผู้ใช้
+    """
+    success, msg, result = system.process_get_reward_history(user_id)
+    if not success:
+        return {"error": msg}
+    return {"message": msg, "total": len(result), "reward_history": result}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

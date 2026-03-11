@@ -125,6 +125,7 @@ class User:
         self.__coupon_list    = []
         self.__ticket_list    = []
         self.__booking_list:  List[Booking] = []
+        self.__reward_history: list = []   # [{"reward_id", "name", "point_cost", "redeemed_at"}]
         self.__total_spending = 0
         self.__type_user      = MemberTier.GUEST
         self.__last_monthly_coupon: Optional[str] = None  # "YYYY-MM" ของเดือนล่าสุดที่รับ
@@ -180,6 +181,18 @@ class User:
 
     def add_ticket(self, t: Ticket):
         self.__ticket_list.append(t)
+
+    def add_reward_history(self, reward_id: str, name: str, point_cost: int):
+        from datetime import datetime
+        self.__reward_history.append({
+            "reward_id":  reward_id,
+            "name":       name,
+            "point_cost": point_cost,
+            "redeemed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        })
+
+    def get_reward_history(self) -> list:
+        return list(self.__reward_history)
 
     def get_last_monthly_coupon(self) -> Optional[str]:
         return self.__last_monthly_coupon

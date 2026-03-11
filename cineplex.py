@@ -458,6 +458,8 @@ class JamorCineplex:
         user = self.search_user_by_id(user_id)
         if not user:
             return False, "User not found."
+        if user.tier == MemberTier.GUEST:
+            return False, "Guest members cannot exchange rewards. Please register first."
 
         reward = self.search_reward_by_id(reward_id)
         if not reward:
@@ -471,12 +473,23 @@ class JamorCineplex:
 
         if user.deduct_point(reward.point_cost):
             reward.decrease_stock()
+            user.add_reward_history(reward.id, reward.name, reward.point_cost)
             return True, {
-                "message": f"Successfully exchanged '{reward.name}'",
-                "remaining_points": user.get_point()
+                "message":          f"Successfully exchanged '{reward.name}'",
+                "remaining_points": user.get_point(),
             }
 
         return False, "System error during point deduction."
+
+    def process_get_reward_history(self, user_id: str):
+        """ดูประวัติการแลกของรางวัลของ user"""
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+        if user.tier == MemberTier.GUEST:
+            return False, "Guest members do not have reward history. Please register first.", None
+        history = user.get_reward_history()
+        return True, f"Found {len(history)} reward(s) exchanged", history
 
     # ── monthly coupon process ──
 
@@ -650,6 +663,8 @@ class JamorCineplex:
         user = self.search_user_by_id(user_id)
         if not user:
             return None, "User not found"
+        if user.tier == MemberTier.GUEST:
+            return None, "Guest members cannot change seats. Please register first."
         booking = user.search_booking_by_id(booking_id)
         if not booking:
             return None, "Booking not found"

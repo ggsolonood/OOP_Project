@@ -372,6 +372,15 @@ def get_user_coupons(user_id: str):
     return {"message": msg, "total": len(result), "coupons": result}
 
 
+@user_router.get("/{user_id}/reward-history")
+def get_reward_history(user_id: str):
+    """ดูประวัติการแลกของรางวัล — Guest ไม่สามารถใช้งานได้"""
+    success, msg, result = system.process_get_reward_history(user_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"message": msg, "total": len(result), "reward_history": result}
+
+
 @user_router.post("/{user_id}/addcouponmon")
 def add_monthly_coupon(user_id: str):
     """รับคูปองส่วนลดรายเดือน (50 บาท) — รับได้ 1 ครั้ง/เดือน เฉพาะ member ที่ลงทะเบียนแล้ว"""
