@@ -1,32 +1,4 @@
-"""
-mainfastmcp.py
-─────────────────────────────────────────────────────────────────────────────
-Entry point สำหรับรัน JamorCineplex เป็น MCP Server
 
-ติดตั้ง dependency:
-    pip install fastmcp
-
-วิธีรัน:
-    1. stdio  (สำหรับ Claude Desktop / MCP client ทั่วไป)
-           python mainfastmcp.py
-
-    2. SSE   (สำหรับ web-based MCP client)
-           python mainfastmcp.py --transport sse --port 8001
-
-    3. Streamable HTTP  (fastmcp >= 2.x)
-           python mainfastmcp.py --transport streamable-http --port 8001
-
-การตั้งค่า Claude Desktop (claude_desktop_config.json):
-    {
-      "mcpServers": {
-        "jamor-cineplex": {
-          "command": "python",
-          "args": ["/path/to/mainfastmcp.py"]
-        }
-      }
-    }
-─────────────────────────────────────────────────────────────────────────────
-"""
 
 import argparse
 from routes_mcp import mcp   # FastMCP instance พร้อม tools ทั้งหมด
