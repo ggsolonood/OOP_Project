@@ -85,7 +85,7 @@ if test_user:
     test_user.add_point(500)
 
 # Reset tier to GUEST (pending /register via API)
-system.search_user_by_id("M001").change_type(MemberTier.GUEST)
+system.search_user_by_id("M001").change_type(MemberTier.GOLD)
 system.search_user_by_id("U01").change_type(MemberTier.GUEST)
 
 # ── Coupons ───────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ system.process_create_coupon("discount", "Discount 20 (limited)", discount=20,
                              last_date="2026-12-31 23:59")
 
 # ── Rewards ───────────────────────────────────────────────────────────────
-system.process_create_reward("Free Popcorn (M)", 100, 50)
+system.process_create_reward("Free Popcorn (M)", 10, 50)
 system.process_create_reward("Movie Ticket (Standard)", 300, 10)
 
 system.process_create_booking("U01","CPX01","ST01",["A1"])
