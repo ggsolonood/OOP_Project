@@ -11,8 +11,8 @@ class OrderStatus(Enum):
     CANCELLED = "Cancelled"
 
 class SeatStatus(Enum):
-    BOOKED = "Booked"       # ถูกจอง (รอจ่ายเงิน)
-    OCCUPIED = "Occupied"   # จ่ายเงินแล้ว
+    BOOKED = "Booked"       
+    OCCUPIED = "Occupied"   
 
 class SeatType(Enum):
     NORMALSEAT = "Normalseat"
@@ -34,3 +34,9 @@ class TheaterType(Enum):
     STANDARD = "Standard"
     IMAX = "IMAX"
     _4DX = "4DX"
+
+class Genre(Enum):
+    ACTION = "Action"
+    COMEDY = "Comedy"
+    SCI_FI = "Sci-Fi"
+    DRAMA = "Drama"

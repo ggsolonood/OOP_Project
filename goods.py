@@ -19,11 +19,8 @@ class Goods:
     @property
     def type(self): return self.__type
 
-    def decrease_stock(self, amount: int):
-        self.__stock -= amount
-
-    def increase_stock(self, amount: int):
-        self.__stock += amount
+    def decrease_stock(self, amount: int): self.__stock -= amount
+    def increase_stock(self, amount: int): self.__stock += amount
 
 class Order:
     def __init__(self, order_id: str, items: dict, total: float, account_id: str, coupon_id: str = None):
@@ -44,12 +41,10 @@ class Order:
     def account_id(self): return self.__account_id
     @property
     def coupon_id(self): return self.__coupon_id
-    
     @property
     def status(self): return self.__status
     @status.setter
-    def status(self, val: OrderStatus):
-        self.__status = val
+    def status(self, val: OrderStatus): self.__status = val
 
 class Reward:
     def __init__(self, reward_id: str, name: str, points: int):

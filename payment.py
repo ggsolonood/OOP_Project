@@ -4,12 +4,9 @@ class Account:
         self.__balance = balance
 
     @property
-    def id(self):
-        return self.__id
-
+    def id(self): return self.__id
     @property
-    def balance(self):
-        return self.__balance
+    def balance(self): return self.__balance
 
     def decrease(self, amount: float) -> bool:
         if self.__balance >= amount:

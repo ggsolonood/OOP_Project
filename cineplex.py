@@ -2,7 +2,7 @@ from datetime import datetime
 from payment import Bank
 from goods import Order
 from theater import Cineplex, ShowtimeSeat, Review
-from user import User, Booking, DiscountCoupon, ExchangeCoupon
+from user import User, Booking, Ticket, FixedDiscountCoupon
 from enums import MemberTier, BookingStatus, OrderStatus, SeatStatus
 
 class JamorCineplex:
@@ -10,22 +10,40 @@ class JamorCineplex:
         self.__bank = bank
         self.__cineplexes = {} 
         self.__users = {}
-        
         self.__order_counter = 1
         self.__booking_counter = 1
+        self.__ticket_counter = 1
 
     def __gen_bkg_id(self):
-        uid = f"B{self.__booking_counter:03d}"
-        self.__booking_counter += 1
-        return uid
-
+        uid = f"B{self.__booking_counter:03d}"; self.__booking_counter += 1; return uid
     def __gen_ord_id(self):
-        uid = f"O{self.__order_counter:03d}"
-        self.__order_counter += 1
-        return uid
+        uid = f"O{self.__order_counter:03d}"; self.__order_counter += 1; return uid
+    def __gen_tkt_id(self):
+        uid = f"TK{self.__ticket_counter:03d}"; self.__ticket_counter += 1; return uid
 
     def add_cineplex(self, cpx: Cineplex): self.__cineplexes[cpx.id] = cpx
     def add_user(self, user: User): self.__users[user.id] = user
+
+    def search_movie_by_name(self, name: str):
+        for cpx in self.__cineplexes.values():
+            for m in cpx.movies:
+                if name.lower() in m.name.lower(): return m
+        return None
+
+    def search_cineplex_by_name(self, name: str):
+        for cpx in self.__cineplexes.values():
+            if name.lower() in cpx.name.lower(): return cpx
+        return None
+
+    def search_showtime_details(self, movie_name: str, cineplex_name: str):
+        cpx = self.search_cineplex_by_name(cineplex_name)
+        if not cpx: return False, "Cineplex not found"
+        results = []
+        for m in cpx.movies:
+            if movie_name.lower() in m.name.lower():
+                for st in m.showtimes:
+                    results.append({"showtime_id": st.id, "time": st.start_time.strftime("%Y-%m-%d %H:%M")})
+        return True, results
 
     def __find_movie(self, movie_id: str):
         for cpx in self.__cineplexes.values():
@@ -52,38 +70,50 @@ class JamorCineplex:
                 if o.id == order_id: return o, u
         return None, None
 
-    # ================= 16 USE CASES =================
+    # ================= 17 USE CASES =================
 
-    # 1. แสดงหนัง
     def get_all_movies(self):
-        unique = {m.id: m.name for cpx in self.__cineplexes.values() for m in cpx.movies}
-        return [{"id": k, "name": v} for k, v in unique.items()]
+        unique = {m.id: m for cpx in self.__cineplexes.values() for m in cpx.movies}
+        # m.age_rating ตอนนี้เป็น str แล้ว
+        return [{"id": m.id, "name": m.name, "genre": m.genre.value, "age_rating": m.age_rating} for m in unique.values()]
 
-    # 2. แสดงรอบฉายของหนัง
     def get_showtimes_by_movie(self, movie_id: str):
         m = self.__find_movie(movie_id)
         if not m: return False, "Movie not found"
-        return True, [{"id": st.id, "time": st.start_time.strftime("%Y-%m-%d %H:%M")} for st in m.showtimes]
+        results = []
+        for cpx in self.__cineplexes.values():
+            for st in m.showtimes:
+                if st.movie.id == movie_id:
+                    results.append({
+                        "showtime_id": st.id,
+                        "cineplex": cpx.name,
+                        "theater": st.theater.name,
+                        "theater_type": st.theater.type.value,
+                        "time": st.start_time.strftime("%Y-%m-%d %H:%M")
+                    })
+        return True, results
 
-    # 3. แสดงที่นั่งว่าง และราคา (Movie Base + Theater Markup + Seat Markup)
     def get_available_seats(self, showtime_id: str):
         st, _ = self.__find_showtime(showtime_id)
         if not st: return False, "Showtime not found"
         
         avail = []
         base_price = st.movie.base_price + st.theater.additional_price
-
         for seat in st.theater.seats:
             if seat.id not in st.showtime_seats:
                 total_seat_price = base_price + seat.price
-                avail.append({"id": seat.id, "number": seat.number, "price": total_seat_price})
+                avail.append({
+                    "id": seat.id, 
+                    "number": seat.number, 
+                    "type": seat.type.value,
+                    "total_price": total_seat_price
+                })
         return True, avail
 
-    # 4. จองตั๋ว 
     def book_ticket(self, user_id: str, showtime_id: str, seat_ids: list, coupon_id: str = None):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
-        st, _ = self.__find_showtime(showtime_id)
+        st, cpx = self.__find_showtime(showtime_id)
         if not st: return False, "Showtime not found"
 
         now = datetime.now()
@@ -93,24 +123,22 @@ class JamorCineplex:
         theater_seats = {s.id: s for s in st.theater.seats}
         total_raw_price = 0
         base_price = st.movie.base_price + st.theater.additional_price
+        seat_names = []
         
         for s_id in seat_ids:
-            if s_id not in theater_seats: return False, "Invalid seat"
-            if s_id in st.showtime_seats: return False, "Seat already booked"
+            if s_id not in theater_seats: return False, f"Invalid seat {s_id}"
+            if s_id in st.showtime_seats: return False, f"Seat {s_id} already booked"
             total_raw_price += (base_price + theater_seats[s_id].price)
+            seat_names.append(theater_seats[s_id].number)
 
         final_price = total_raw_price * (1 - user.discount)
 
         if coupon_id:
             coupon = next((c for c in user.coupons if c.id == coupon_id and not c.is_used), None)
             if not coupon: return False, "Invalid or used coupon"
-            if isinstance(coupon, DiscountCoupon):
-                final_price = max(final_price - coupon.discount_amount, 0)
-                coupon.is_used = True
-            else:
-                return False, "This coupon cannot be used for booking"
+            final_price = coupon.calculate_discount(final_price)
+            coupon.is_used = True
 
-        # สร้าง ShowtimeSeat
         for s_id in seat_ids:
             seat = theater_seats[s_id]
             st.showtime_seats[s_id] = ShowtimeSeat(seat.id, seat.number, seat.type)
@@ -118,9 +146,9 @@ class JamorCineplex:
         b_id = self.__gen_bkg_id()
         bkg = Booking(b_id, showtime_id, seat_ids, final_price, coupon_id)
         user.add_booking(bkg)
-        return True, b_id
+        
+        return True, f"Booking ID: {b_id} | Location: {cpx.name}, {st.theater.name} | Movie: {st.movie.name} ({st.start_time.strftime('%H:%M')}) | Seats: {', '.join(seat_names)}"
 
-    # 5. จ่ายเงินยืนยันการจอง
     def confirm_booking(self, booking_id: str, account_id: str):
         bkg, user = self.__find_booking(booking_id)
         if not bkg or bkg.status != BookingStatus.PENDING: return False, "Invalid booking"
@@ -131,14 +159,19 @@ class JamorCineplex:
             user.add_points(int(bkg.total // 10))
             
             st, _ = self.__find_showtime(bkg.showtime_id)
+            tickets_generated = []
             for s_id in bkg.seat_ids:
                 if s_id in st.showtime_seats:
                     st.showtime_seats[s_id].status = SeatStatus.OCCUPIED
+                    seat_num = st.showtime_seats[s_id].number
+                    t_id = self.__gen_tkt_id()
+                    new_ticket = Ticket(t_id, st.id, seat_num)
+                    user.add_ticket(new_ticket)
+                    tickets_generated.append(f"Ticket: {t_id} (Seat: {seat_num})")
                     
-            return True, "Confirmed"
+            return True, f"Payment successful. Tickets generated: {', '.join(tickets_generated)}"
         return False, "Payment failed"
 
-    # 6. ยกเลิกจอง
     def cancel_booking(self, booking_id: str):
         bkg, user = self.__find_booking(booking_id)
         if not bkg or bkg.status in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]: return False, "Cannot cancel"
@@ -157,9 +190,13 @@ class JamorCineplex:
             if s_id in st.showtime_seats:
                 del st.showtime_seats[s_id]
                 
-        return True, "Cancelled"
+        return True, f"Booking {booking_id} has been cancelled and refunded successfully."
 
-    # 7. สั่งซื้อสินค้า
+    def get_goods_by_cineplex(self, cineplex_id: str):
+        if cineplex_id not in self.__cineplexes: return False, "Cineplex not found"
+        cpx = self.__cineplexes[cineplex_id]
+        return True, [{"id": g.id, "name": g.name, "type": g.type.value, "price": g.price, "stock": g.stock} for g in cpx.goods]
+
     def order_goods(self, user_id: str, cineplex_id: str, items_dict: dict, account_id: str, coupon_id: str = None):
         if user_id not in self.__users: return False, "User not found"
         if cineplex_id not in self.__cineplexes: return False, "Cineplex not found"
@@ -169,32 +206,26 @@ class JamorCineplex:
         cpx_goods = {g.id: g for g in cpx.goods}
         
         total = 0
+        items_bought = []
         for g_id, qty in items_dict.items():
             if g_id not in cpx_goods or cpx_goods[g_id].stock < qty: return False, f"Stock issue for {g_id}"
             total += cpx_goods[g_id].price * qty
+            items_bought.append(f"{cpx_goods[g_id].name} (x{qty})")
 
         if coupon_id:
             coupon = next((c for c in user.coupons if c.id == coupon_id and not c.is_used), None)
             if not coupon: return False, "Invalid or used coupon"
-                
-            if isinstance(coupon, DiscountCoupon):
-                total = max(total - coupon.discount_amount, 0)
-                coupon.is_used = True
-            elif isinstance(coupon, ExchangeCoupon):
-                for free_item in coupon.goods_list:
-                    if free_item in items_dict:
-                        total = max(total - cpx_goods[free_item].price, 0)
-                coupon.is_used = True
+            total = coupon.calculate_discount(total)
+            coupon.is_used = True
 
         if self.__bank.pay(account_id, total):
             for g_id, qty in items_dict.items(): cpx_goods[g_id].decrease_stock(qty)
             o_id = self.__gen_ord_id()
             user.add_order(Order(o_id, items_dict, total, account_id, coupon_id))
-            return True, o_id
+            return True, f"Order {o_id} successful. Bought: {', '.join(items_bought)}. Total Paid: {total} THB."
             
         return False, "Payment failed"
 
-    # 8. ยกเลิกคำสั่งซื้อ
     def cancel_order(self, order_id: str, cineplex_id: str):
         order, user = self.__find_order(order_id)
         if not order or order.status == OrderStatus.CANCELLED: return False, "Invalid order"
@@ -212,30 +243,33 @@ class JamorCineplex:
             if coupon: coupon.is_used = False
 
         order.status = OrderStatus.CANCELLED
-        return True, "Order cancelled"
+        return True, f"Order {order_id} cancelled and refunded successfully."
 
-    # 9. สมัครสมาชิก
     def upgrade_member(self, user_id: str, account_id: str):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
-        if user.tier != MemberTier.GUEST: return False, "Already a member"
-
-        if self.__bank.pay(account_id, 500.0):
-            user.tier = MemberTier.SILVER
-            return True, "Upgraded"
+        
+        if self.__bank.pay(account_id, 150.0):
+            user.upgrade_tier()
+            return True, f"Upgrade successful. You are now a {user.tier.value} member."
         return False, "Payment failed"
 
-    # 10. ดูประวัติ
     def view_history(self, user_id: str):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
         history = []
         for b in user.bookings:
             if user.tier == MemberTier.GUEST and b.status in [BookingStatus.COMPLETED, BookingStatus.CANCELLED]: continue
-            history.append({"id": b.id, "status": b.status.value, "total": b.total})
+            history.append({
+                "id": b.id, 
+                "status": b.status.value, 
+                "total": b.total,
+                "date": b.created_at.strftime("%Y-%m-%d %H:%M")
+            })
+        if not history and user.tier == MemberTier.GUEST:
+            return True, "No active bookings. Guests cannot view past history."
         return True, history
 
-    # 11. โชว์พ้อย & รางวัล
     def show_points_and_rewards(self, user_id: str):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
@@ -243,10 +277,9 @@ class JamorCineplex:
         
         rwds = []
         for cpx in self.__cineplexes.values():
-            for r in cpx.rewards: rwds.append({"id": r.id, "name": r.name, "cost": r.points})
+            for r in cpx.rewards: rwds.append(f"[{r.id}] {r.name} - Required: {r.points} points")
         return True, {"points": user.points, "rewards": rwds}
 
-    # 12. แลกของ
     def redeem_reward(self, user_id: str, reward_id: str):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
@@ -255,31 +288,32 @@ class JamorCineplex:
         target_rwd = None
         for cpx in self.__cineplexes.values():
             for r in cpx.rewards:
-                if r.id == reward_id:
-                    target_rwd = r
-                    break
+                if r.id == reward_id: target_rwd = r; break
         
         if not target_rwd: return False, "Reward not found"
         if user.points >= target_rwd.points:
             user.decrease_points(target_rwd.points)
-            return True, "Redeemed"
+            return True, "Redeem successful."
         return False, "Not enough points"
 
-    # 13. เก็บคูปอง
     def collect_monthly_coupon(self, user_id: str, coupon_id: str):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
         if user.tier == MemberTier.GUEST: return False, "Members only"
         
-        user.add_coupon(DiscountCoupon(coupon_id, "Monthly 50 THB", 50.0))
-        return True, "Coupon collected"
+        discount_val = 50.0 
+        if user.tier == MemberTier.GOLD: discount_val = 100.0
+        elif user.tier == MemberTier.PLATINUM: discount_val = 150.0
 
-    # 14. เปลี่ยนที่นั่ง
+        user.add_coupon(FixedDiscountCoupon(coupon_id, f"Monthly {discount_val} THB", discount_val))
+        return True, f"Coupon collected for {user.tier.value} tier."
+
     def change_seats(self, user_id: str, booking_id: str, new_seat_ids: list):
         bkg, user = self.__find_booking(booking_id)
         if not bkg or user.id != user_id: return False, "Booking not found"
         if user.tier == MemberTier.GUEST: return False, "Members only"
         if bkg.status != BookingStatus.CONFIRMED: return False, "Must be confirmed"
+        
         if len(new_seat_ids) != len(bkg.seat_ids): return False, "Seat count mismatch"
 
         st, _ = self.__find_showtime(bkg.showtime_id)
@@ -297,8 +331,7 @@ class JamorCineplex:
         
         if bkg.coupon_id:
             coupon = next((c for c in user.coupons if c.id == bkg.coupon_id), None)
-            if isinstance(coupon, DiscountCoupon):
-                new_final = max(new_final - coupon.discount_amount, 0)
+            if coupon: new_final = coupon.calculate_discount(new_final)
 
         if new_final > bkg.total: return False, "Cannot change to higher price"
         
@@ -306,32 +339,29 @@ class JamorCineplex:
         if diff > 0: self.__bank.refund(bkg.account_id, diff)
         
         for s_id in bkg.seat_ids: 
-            if s_id in st.showtime_seats:
-                del st.showtime_seats[s_id]
+            if s_id in st.showtime_seats: del st.showtime_seats[s_id]
             
         for s_id in new_seat_ids: 
             seat = theater_seats[s_id]
             new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-            new_st_seat.status = SeatStatus.OCCUPIED # ยืนยันแล้ว
+            new_st_seat.status = SeatStatus.OCCUPIED
             st.showtime_seats[s_id] = new_st_seat
 
         bkg.seat_ids = new_seat_ids 
         bkg.total = new_final
-        return True, f"Seats changed. Refund: {diff}"
+        return True, f"Changed seats in booking {booking_id} successfully. Refund: {diff}"
 
-    # 15. เขียนรีวิว
     def write_review(self, user_id: str, booking_id: str, star: int, comment: str):
         bkg, user = self.__find_booking(booking_id)
         if not bkg or user.id != user_id: return False, "Booking not found"
         if user.tier == MemberTier.GUEST: return False, "Members only"
-        if bkg.status != BookingStatus.COMPLETED: return False, "Movie not watched yet"
+        if bkg.status != BookingStatus.COMPLETED: return False, "You haven't watched this movie yet."
         
         st, _ = self.__find_showtime(bkg.showtime_id)
         st.movie.add_review(Review(star, comment, user.name))
-        return True, "Review added"
+        return True, "Review added successfully."
 
-    # 16. อ่านรีวิว
     def read_reviews(self, movie_id: str):
         m = self.__find_movie(movie_id)
         if not m: return False, "Movie not found"
-        return True, [{"star": r.star, "comment": r.comment, "user": r.user_name} for r in m.reviews]
+        return True, [{"star": r.star, "comment": r.comment, "reviewer": r.user_name} for r in m.reviews]

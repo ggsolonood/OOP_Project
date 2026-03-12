@@ -13,7 +13,7 @@ class ConfirmBookingReq(BaseModel):
 class OrderGoodsReq(BaseModel):
     user_id: str
     cineplex_id: str
-    items: Dict[str, int] # เช่น {"G01": 2}
+    items: Dict[str, int]
     account_id: str
     coupon_id: Optional[str] = None
 
