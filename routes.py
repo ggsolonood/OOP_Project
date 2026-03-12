@@ -8,7 +8,7 @@ from enums import BookingStatus
 from schemas import (
     CineplexCreate, MovieCreate, TheaterCreate, SeatCreate, SeatsBulkCreate, ShowtimeCreate,
     CouponCreate, BookingCreate, BookingChangeSeats,
-    RewardCreate, RewardExchange, GuestCreate, RegisterMember,
+    RewardCreate, RewardExchange, GuestCreate, RegisterMember, OrderGoodsRequest,
 )
 
 admin_router   = APIRouter(prefix="/admin",   tags=["Cinema Management"])
@@ -58,106 +58,6 @@ def get_available_seats(cineplex_id: str, showtime_id: str):
         raise HTTPException(status_code=404, detail=msg)
     return data
 
-
-# ── ADMIN ─────────────────────────────────────────────────────────────────
-
-@admin_router.post("/cineplex/")
-def create_cineplex(body: CineplexCreate):
-    success, msg = system.process_create_cineplex(body.name)
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
-@admin_router.post("/movie/")
-def create_movie(body: MovieCreate):
-    success, msg = system.process_create_movie(
-        body.cineplex_id, body.name, body.duration, body.genre, body.age_rating
-    )
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
-@admin_router.post("/theater/")
-def create_theater(body: TheaterCreate):
-    """**type_theater**: `Standard` | `IMAX` | `4DX`  (case-insensitive)"""
-    success, msg = system.process_create_theater(body.cineplex_id, body.type_theater)
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
-@admin_router.post("/seat/")
-def create_seat(body: SeatCreate):
-    """สร้าง seat เดี่ยว — **type_seat**: `Normalseat` | `Sofa` | `Honeymoonbed`  (case-insensitive)"""
-    success, msg = system.process_create_seat(
-        body.cineplex_id, body.theater_id, body.seat_number, body.type_seat
-    )
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
-@admin_router.post("/seats/bulk")
-def create_seats_bulk(body: SeatsBulkCreate):
-    """
-    สร้าง seat หลายที่นั่งพร้อมกัน
-    **type_seat**: `Normalseat` | `Sofa` | `Honeymoonbed` (case-insensitive)
-    ```json
-    {
-      "cineplex_id": "CPX01",
-      "theater_id": "T01",
-      "seats": [
-        {"seat_number": "A1", "type_seat": "Normalseat"},
-        {"seat_number": "B1", "type_seat": "Sofa"}
-      ]
-    }
-    ```
-    """
-    seat_dicts = [s.model_dump() for s in body.seats]
-    success, result = system.process_create_seats_bulk(
-        body.cineplex_id, body.theater_id, seat_dicts
-    )
-    if not success:
-        raise HTTPException(status_code=400, detail=result)
-    return {
-        "message":       f"Bulk seat creation done. Created: {len(result['created'])}, Failed: {len(result['failed'])}",
-        "created":       result["created"],
-        "failed":        result["failed"],
-    }
-
-
-@admin_router.post("/showtime/")
-def create_showtime(body: ShowtimeCreate):
-    """**start_time / end_time** format: `YYYY-MM-DD HH:MM`"""
-    success, msg = system.process_create_showtime(
-        body.cineplex_id, body.movie_id, body.theater_id,
-        body.status, body.subtitle, body.start_time, body.end_time, body.base_price
-    )
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
-@admin_router.post("/coupon/")
-def create_coupon(body: CouponCreate):
-    success, msg = system.process_create_coupon(
-        body.coupon_type, body.name, body.discount, body.goods_list, body.last_date
-    )
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
-@admin_router.post("/reward/")
-def create_reward(body: RewardCreate):
-    success, msg = system.process_create_reward(body.name, body.point_cost, body.stock)
-    if not success:
-        raise HTTPException(status_code=400, detail=msg)
-    return msg
-
-
 @admin_router.get("/showtimes/")
 def get_all_showtimes():
     now    = datetime.now()
@@ -181,14 +81,27 @@ def get_all_showtimes():
         "showtimes":        result,
     }
 
-
 # ── STORE ─────────────────────────────────────────────────────────────────
 
+@store_router.get("/goods/")
+def get_all_goods():
+    """ดูสินค้าทั้งหมดที่มีให้ซื้อในทุก Cineplex พร้อมราคาและสต็อก"""
+    result = system.process_get_goods_all()
+    return {"total": len(result), "goods": result}
+
+
 @store_router.post("/order/")
-def order_goods(cineplex_id: str, goods_name: str, quantity: int,
-                user_id: str, account_id: str, coupon_id: Optional[str] = None):
-    success, msg = system.process_order_goods(cineplex_id, goods_name, quantity,
-                                              user_id, account_id, coupon_id)
+def order_goods(body: OrderGoodsRequest):
+    """
+    สั่งซื้อสินค้า
+    - **goods_name**: ต้องตรงกับชื่อใน `GET /store/goods/`
+    - **account_id**: รหัสบัญชีธนาคารสำหรับตัดเงิน
+    - **coupon_id**: รหัสคูปอง (optional) ดูได้จาก `GET /users/{user_id}/coupons`
+    """
+    success, msg = system.process_order_goods(
+        body.cineplex_id, body.goods_name, body.quantity,
+        body.user_id, body.account_id, body.coupon_id
+    )
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return {"message": "Order successful", "data": msg}
@@ -200,6 +113,18 @@ def cancel_order(cineplex_id: str, order_id: str, user_id: str):
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     return {"message": msg}
+
+
+@store_router.get("/orders/{user_id}")
+def get_order_history(user_id: str, status: Optional[str] = None):
+    """
+    ดูประวัติการสั่งซื้อสินค้าของ user
+    - **status** (optional): `Completed` | `Cancelled` | `Refunded`
+    """
+    success, msg, result = system.process_get_order_history(user_id, status)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"message": msg, "total": len(result), "orders": result}
 
 
 @store_router.get("/rewards/")
@@ -338,6 +263,24 @@ def view_point(user_id: str):
     }
 
 
+@user_router.get("/{user_id}/coupons")
+def get_user_coupons(user_id: str):
+    """ดูคูปองทั้งหมดในระบบ พร้อมสถานะและวันหมดอายุ"""
+    success, msg, result = system.process_get_user_coupons(user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=msg)
+    return {"message": msg, "total": len(result), "coupons": result}
+
+
+@user_router.get("/{user_id}/reward-history")
+def get_reward_history(user_id: str):
+    """ดูประวัติการแลกของรางวัล — Guest ไม่สามารถใช้งานได้"""
+    success, msg, result = system.process_get_reward_history(user_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"message": msg, "total": len(result), "reward_history": result}
+
+
 @user_router.post("/{user_id}/addcouponmon")
 def add_monthly_coupon(user_id: str):
     """รับคูปองส่วนลดรายเดือน (50 บาท) — รับได้ 1 ครั้ง/เดือน เฉพาะ member ที่ลงทะเบียนแล้ว"""
@@ -361,3 +304,21 @@ def register(user_id: str, body: RegisterMember):
     if not success:
         raise HTTPException(status_code=400, detail=result)
     return result
+
+@user_router.post("/login")
+def login(user_id: str, password: str):
+    success, result = system.process_login(user_id, password)
+    if not success:
+        raise HTTPException(status_code=401, detail=result)
+    return result
+
+@user_router.post("/{user_id}/review_movie")
+def review_movie(user_id:str,booking_id:str,star:int,comment:str) :
+    success , msg = system.process_review_movie(user_id,booking_id,star,comment)
+    if not success : raise HTTPException(status_code=400 , detail=msg)
+    return  {"message":msg}
+
+@user_router.get("/{user_id}/view_review")
+def read_review(movie_id: str):
+    result = system.process_read_review(movie_id)
+    return {"message": result}

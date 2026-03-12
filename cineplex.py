@@ -1,8 +1,8 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime , timedelta
 from enums import BookingStatus, MemberTier, OrderStatus
 from goods import Goods
-from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat
+from theater import Movie, Theater, Seat, Showtime, ShowtimeSeat , Review
 from payment import Bank, Order
 from user import Booking, Ticket, User, Reward
 
@@ -19,6 +19,10 @@ class Coupon:
     @property
     def id(self) -> str:
         return self.__coupon_id
+
+    @property
+    def coupon_name(self) -> str:
+        return self.__name
 
     @property
     def last_date(self) -> Optional[datetime]:
@@ -82,6 +86,10 @@ class Cineplex:
     @property
     def movies_list(self) -> List[Movie]:
         return self.__movies_list
+
+    @property
+    def goods_list(self):
+        return self.__goods_list
 
     def get_cineplex_name(self) -> str:
         return self.__name
@@ -320,8 +328,9 @@ class JamorCineplex:
 
         return True, {"created": created, "failed": failed}
 
-    def process_create_showtime(self, cineplex_id, movie_id, theater_id,
-                                status, subtitle, start_time, end_time, base_price):
+    def process_create_showtime(self, cineplex_id, movie_id, theater_id, status,
+                             subtitle, start_time, base_price,
+                             duration_minutes=None, end_time=None):
         cineplex = self.search_cineplex_by_id(cineplex_id)
         if not cineplex:
             return False, "Cineplex not found."
@@ -334,32 +343,49 @@ class JamorCineplex:
 
         try:
             dt_start = datetime.strptime(start_time, Showtime.DT_FORMAT)
-            dt_end   = datetime.strptime(end_time,   Showtime.DT_FORMAT)
         except ValueError:
-            return False, f"Invalid datetime format. Use '{Showtime.DT_FORMAT}' (e.g. '2025-12-31 14:30')"
+            return False, f"Invalid start_time format. Use '{Showtime.DT_FORMAT}'"
 
-        if dt_end <= dt_start:
-            return False, "end_time must be after start_time"
+        if end_time:
+            try:
+                dt_end = datetime.strptime(end_time, Showtime.DT_FORMAT)
+            except ValueError:
+                return False, f"Invalid end_time format. Use '{Showtime.DT_FORMAT}'"
+            if dt_end <= dt_start:
+                return False, "end_time must be after start_time."
+        elif duration_minutes is not None:
+            if not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
+                return False, "duration_minutes must be a positive number."
+            dt_end = dt_start + timedelta(minutes=duration_minutes)
+        else:
+            return False, "Must provide either 'duration_minutes' or 'end_time'."
 
+        # ✅ has_conflict ตรวจเฉพาะ theater นั้น ๆ — คนละ theater ไม่กระทบกัน
         if theater.has_conflict(dt_start, dt_end):
             conflict = next(
                 st for st in theater.showtime_list
                 if dt_start < st.end_time and dt_end > st.start_time
             )
             return False, (
-                f"Time conflict in Theater '{theater_id}': "
+                f"Time conflict in theater '{theater_id}': "
                 f"showtime '{conflict.id}' "
                 f"({conflict.start_time.strftime(Showtime.DT_FORMAT)}"
-                f" – {conflict.end_time.strftime(Showtime.DT_FORMAT)}) "
-                f"overlaps with the requested slot."
+                f" – {conflict.end_time.strftime(Showtime.DT_FORMAT)})"
+                f" overlaps with the requested slot "
+                f"({dt_start.strftime(Showtime.DT_FORMAT)}"
+                f" – {dt_end.strftime(Showtime.DT_FORMAT)})."
             )
 
-        showtime_id = f"STIME-{self.__showtime_counter:04d}"
+        showtime_id  = f"STIME-{self.__showtime_counter:04d}"
         self.__showtime_counter += 1
-        new_showtime = Showtime(showtime_id, movie, theater, status, subtitle,
-                                dt_start, dt_end, base_price)
+
+        new_showtime = Showtime(
+            showtime_id, movie, theater, status, subtitle,
+            dt_start, base_price,
+            end_time=dt_end,          # ✅ ส่ง end_time จริงไปเก็บ
+        )
         cineplex.add_showtime(new_showtime)
-        theater.add_showtime(new_showtime)
+        theater.add_showtime(new_showtime)   # ✅ ต้องมีทั้งสองบรรทัด!
         return True, {"message": "Showtime created successfully.", "showtime_id": showtime_id}
 
     def process_create_coupon(self, coupon_type, name, discount=0.0,
@@ -405,10 +431,51 @@ class JamorCineplex:
             for r in self.__reward_list
         ]
 
+    def process_get_user_coupons(self, user_id: str):
+        """
+        ดูคูปองทั้งหมดในระบบ (global coupon pool)
+        คืน (success, msg, list)
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+
+        result = []
+        for c in self.__coupon_list:
+            result.append({
+                "coupon_id":   c.get_coupon_id(),
+                "name":        c.coupon_name,
+                "type":        "discount" if isinstance(c, DiscountCoupon) else
+                               "exchange" if isinstance(c, ExchangeCoupon) else "base",
+                "discount":    c.get_discount(),
+                "is_used":     c._is_used,
+                "is_expired":  c.is_expired(),
+                "valid_until": c.last_date.strftime("%Y-%m-%d %H:%M") if c.last_date else "ไม่มีวันหมดอายุ",
+            })
+        return True, f"Found {len(result)} coupon(s)", result
+
+    def process_get_goods_all(self):
+        """ดูสินค้าทั้งหมดที่มีในทุก Cineplex"""
+        result = []
+        for cineplex in self.__cineplex_list:
+            for g in cineplex.goods_list:
+                result.append({
+                    "cineplex_id":   cineplex.id,
+                    "cineplex_name": cineplex.get_cineplex_name(),
+                    "name":          g.get_name(),
+                    "type":          g.goods_type.value,
+                    "flavor":        g.flavor or "-",
+                    "price":         g.get_price(),
+                    "stock":         g.stock,
+                })
+        return result
+
     def process_exchange_reward(self, user_id: str, reward_id: str):
         user = self.search_user_by_id(user_id)
         if not user:
             return False, "User not found."
+        if user.tier == MemberTier.GUEST:
+            return False, "Guest members cannot exchange rewards. Please register first."
 
         reward = self.search_reward_by_id(reward_id)
         if not reward:
@@ -422,12 +489,23 @@ class JamorCineplex:
 
         if user.deduct_point(reward.point_cost):
             reward.decrease_stock()
+            user.add_reward_history(reward.id, reward.name, reward.point_cost)
             return True, {
-                "message": f"Successfully exchanged '{reward.name}'",
-                "remaining_points": user.get_point()
+                "message":          f"Successfully exchanged '{reward.name}'",
+                "remaining_points": user.get_point(),
             }
 
         return False, "System error during point deduction."
+
+    def process_get_reward_history(self, user_id: str):
+        """ดูประวัติการแลกของรางวัลของ user"""
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+        if user.tier == MemberTier.GUEST:
+            return False, "Guest members do not have reward history. Please register first.", None
+        history = user.get_reward_history()
+        return True, f"Found {len(history)} reward(s) exchanged", history
 
     # ── monthly coupon process ──
 
@@ -564,9 +642,11 @@ class JamorCineplex:
             return False, "Booking is already cancelled"
         if booking.status == BookingStatus.COMPLETED:
             return False, "Cannot cancel a completed booking"
+        if booking.status == BookingStatus.CONFIRMED:
+            self.__bank.refund(booking.account, booking.total_price)
         booking.showtime.remove_seats([s.seat_number for s in booking.showtime_seat])
         booking.status = BookingStatus.CANCELLED
-        return True, f"Booking {booking_id} cancelled (no refund)"
+        return True, f"Booking {booking_id} cancelled "
 
     def process_confirm_booking(self, booking_id: str, user_id: str, account_id: str):
         user = self.search_user_by_id(user_id)
@@ -578,11 +658,13 @@ class JamorCineplex:
         if booking.status != BookingStatus.PENDING:
             return False, f"Booking status is '{booking.status.value}', cannot confirm"
 
-        total   = booking.total_price
-        result  = self.__bank.payment(account_id, total) if self.__bank else True
+        total  = booking.total_price
+        result = self.__bank.payment(account_id, total)
+        if result == "Account not found" : return False , result
         if not result:
             return False, "Failed: Insufficient balance"
 
+        booking.account = account_id
         booking.status = BookingStatus.CONFIRMED
         showtime = booking.showtime
         ticket = Ticket(
@@ -601,6 +683,8 @@ class JamorCineplex:
         user = self.search_user_by_id(user_id)
         if not user:
             return None, "User not found"
+        if user.tier == MemberTier.GUEST:
+            return None, "Guest members cannot change seats. Please register first."
         booking = user.search_booking_by_id(booking_id)
         if not booking:
             return None, "Booking not found"
@@ -633,7 +717,7 @@ class JamorCineplex:
         if booking_status == BookingStatus.CONFIRMED:
             if new_total > old_total:
                 return None, "Cannot change to more expensive seats"
-            showtime.remove_seats(current_seats)
+            showtime.remove_seats(current_seats.state)
             new_st = showtime.add_seats(new_real_seats, BookingStatus.CONFIRMED)
             booking.showtime_seat = new_st
             booking.total_price   = new_total
@@ -683,7 +767,7 @@ class JamorCineplex:
         order_id    = f"ORD-{self.__order_counter:04d}"
         self.__order_counter += 1
 
-        order  = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id)
+        order  = Order(order_id, goods_name, values, account_id, total_price, used_coupon_id, user_id=user_id)
         result = self.__bank.payment(account_id, total_price) if self.__bank else True
         if result:
             target_good.clearstock(values)
@@ -726,6 +810,38 @@ class JamorCineplex:
                 return True, f"Cancel success, Refund {total_paid} THB"
             return False, "Refund failed"
         return False, "Cannot cancel order with current status"
+
+    def process_get_order_history(self, user_id: str, status_filter: str = None):
+        """
+        ดูประวัติการสั่งซื้อสินค้าของ user
+        status_filter: "Completed" | "Cancelled" | "Refunded" | None = ทั้งหมด
+        """
+        user = self.search_user_by_id(user_id)
+        if not user:
+            return False, "User not found.", None
+
+        orders = [o for o in self.__order_list if o.get_user_id() == user_id]
+
+        if status_filter:
+            try:
+                filter_status = OrderStatus(status_filter)
+            except ValueError:
+                return False, f"Invalid status. Use: {[s.value for s in OrderStatus]}", None
+            orders = [o for o in orders if o.get_status() == filter_status.value]
+
+        result = []
+        for o in orders:
+            goods_name, values = o.get_items()
+            _, total_paid      = o.get_payment_details()
+            result.append({
+                "order_id":   o.get_order_id(),
+                "goods_name": goods_name,
+                "quantity":   values,
+                "total_paid": total_paid,
+                "coupon_id":  o.get_used_coupon(),
+                "status":     o.get_status(),
+            })
+        return True, f"Found {len(result)} order(s)", result
 
     # ── movie / showtime query ──
 
@@ -797,6 +913,10 @@ class JamorCineplex:
         for cineplex in self.__cineplex_list:
             for showtime in cineplex.showtime_list:
                 if keyword in showtime.movie.name.lower():
+                    try:
+                        end_time_str = showtime.end_time.strftime(Showtime.DT_FORMAT)
+                    except Exception:
+                        end_time_str = "N/A"
                     result.append({
                         "cineplex_name": cineplex.get_cineplex_name(),
                         "showtime_id":   showtime.id,
@@ -806,7 +926,7 @@ class JamorCineplex:
                         "theater_type":  showtime.theater.type_theater.value,
                         "subtitle":      showtime.subtitle,
                         "start_time":    showtime.start_time.strftime(Showtime.DT_FORMAT),
-                        "end_time":      showtime.end_time.strftime(Showtime.DT_FORMAT),
+                        "end_time":      end_time_str,
                         "base_price":    showtime.base_price,
                         "status":        showtime.status,
                     })
@@ -841,6 +961,7 @@ class JamorCineplex:
         user.add_password(password)
         user.set_profile(phone_number=phone_number, birthday=birthday)
         user.change_type(MemberTier.SILVER)
+        self.__user_list.append(user)
         return True, {
             "user_id":      user_id,
             "name":         user.name,
@@ -867,4 +988,41 @@ class JamorCineplex:
             "message": "Login successful",
         }
 
+    def process_review_movie(self,user_id,booking_id,star,comment) :
+            if star not in [1,2,3,4,5] :
+                return False , "Can rate 1 - 5 star only"
+            user = self.search_user_by_id(user_id)
+            if user :
+                booking = user.search_booking_by_id(booking_id)
+                if booking :
+                    if booking.status == BookingStatus.COMPLETED :
+                        movie = booking.showtime.movie
+                        review = Review(star,comment,user.name)
+                        movie.add_review(review)
+                        return True , "Review success"
+                    else :
+                        return False , "You haven't watch the movie"
+                else :
+                    return False , "Booking not found"
+            else :
+                return False , "User not found."
 
+    def process_read_review(self,movie_id) :
+        result = []
+        check = 1
+        for cineplex in self.__cineplex_list:
+            for movie in cineplex.movies_list:
+                if movie.id == movie_id :
+                    check = 0
+                    for review in movie.review :
+                        result.append(review.read)
+        if check :
+            return "Movie not found"
+        if not result :
+            return "No review"
+        return result
+    
+    def complete(self,booking_id) :
+        for i in self.__booking_list :
+            if i.id == booking_id :
+                i.status = BookingStatus.COMPLETED

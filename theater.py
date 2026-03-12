@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime , timedelta
 from enums import SeatType, TheaterType, BookingStatus
 
 
@@ -90,6 +90,13 @@ class Movie:
     def add_review(self,review) :
         self.__review.append(review)
 
+    @property
+    def duration(self) :
+        return self.__duration
+    
+    @property
+    def review(self) :
+        return self.__review
 
 class ShowtimeSeat(Seat):
     def __init__(self, seat: Seat, status: BookingStatus):
@@ -99,6 +106,10 @@ class ShowtimeSeat(Seat):
     @property
     def status(self) -> BookingStatus:
         return self.__status
+    
+    def state(self) :
+        self.__status = "Available"
+        return self.__status
 
 
 class Showtime:
@@ -106,16 +117,24 @@ class Showtime:
 
     def __init__(self, showtime_id: str, movie: Movie, theater: Theater,
                  status: str, subtitle: str,
-                 start_time: datetime, end_time: datetime, base_price: float):
+                 start_time: datetime, base_price: float,
+                 end_time: datetime = None):
         self.__id            = showtime_id
         self.__movie         = movie
         self.__theater       = theater
         self.__status        = status
         self.__subtitle      = subtitle
         self.__start_time    = start_time
-        self.__end_time      = end_time
         self.__base_price    = base_price
         self.__showtime_seat: List[ShowtimeSeat] = []
+        self.__end_time      = (end_time if end_time is not None
+                                else start_time + timedelta(minutes=movie.duration))
+
+    # ... properties เหมือนเดิม ...
+
+    @property
+    def end_time(self) -> datetime:
+        return self.__end_time   # ✅ ใช้ค่าที่เก็บไว้จริง
 
     @property
     def id(self) -> str:
@@ -147,7 +166,7 @@ class Showtime:
 
     @property
     def end_time(self) -> datetime:
-        return self.__end_time
+        return self.__start_time + timedelta(minutes=self.__movie.duration)
 
     def is_upcoming(self) -> bool:
         return self.__start_time >= datetime.now()
@@ -177,6 +196,7 @@ class Showtime:
         self.__showtime_seat = [
             s for s in self.__showtime_seat if s.seat_number not in seat_nos
         ]
+
 
     def add_seats(self, seats: list, status: BookingStatus) -> List[ShowtimeSeat]:
         new_seats = []

@@ -44,19 +44,16 @@ cineplex_siam.add_movie(movie2)
 showtime1 = Showtime(
     "ST01", movie1, theater1, "Active", "TH",
     start_time=datetime(2026, 3, 11, 10, 0),
-    end_time=datetime(2026, 3, 11, 12, 0),
     base_price=200,
 )
 showtime2 = Showtime(
     "ST02", movie1, theater1, "Active", "EN",
     start_time=datetime(2026, 3, 11, 14, 0),
-    end_time=datetime(2026, 3, 11, 16, 0),
     base_price=200,
 )
 showtime3 = Showtime(
     "ST03", movie2, theater2, "Active", "TH",
     start_time=datetime(2026, 3, 11, 13, 0),
-    end_time=datetime(2026, 3, 11, 16, 1),
     base_price=350,
 )
 cineplex_siam.add_showtime(showtime1)
@@ -99,3 +96,4 @@ system.process_create_reward("Movie Ticket (Standard)", 300, 10)
 
 system.process_create_booking("U01","CPX01","ST01",["A1"])
 system.process_create_booking("M001","CPX01","ST01",["A2"])
+system.complete("BKG-00002")
