@@ -5,11 +5,18 @@ class MemberTier(Enum):
     GOLD     = "Gold"
     PLATINUM = "Platinum"
     GUEST    = "Guest"
+
 class OrderStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
-    REFUNDED  = "Refunded"
 
+class ShowtimeStatus(Enum):
+    COMPLETED = "Completed"
+    ACTIVE = "Active"
+    
+class SeatStatus(Enum):
+    BOOKED = "Booked"
+    OCCUPIED = "Occupied"
 
 class SeatType(Enum):
     NORMALSEAT   = "Normalseat"
@@ -35,13 +42,6 @@ class SeatType(Enum):
         }
         return prices[self]
 
-
-class MemberTier(Enum):
-    SILVER   = "Silver"
-    GOLD     = "Gold"
-    PLATINUM = "Platinum"
-    GUEST    = "Guest"
-
     def get_discount(self) -> float:
         discounts = {
             MemberTier.SILVER:   0.05,
@@ -51,13 +51,11 @@ class MemberTier(Enum):
         }
         return discounts[self]
 
-
 class BookingStatus(Enum):
     PENDING   = "Pending"
     CONFIRMED = "Confirmed"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
-
 
 class GoodsType(Enum):
     POPCORN = "Popcorn"

@@ -11,7 +11,7 @@ from routes import (
 
 app = FastAPI(
     title="JamorCineplex API",
-    description="API สำหรับระบบจัดการโรงภาพยนตร์และระบบการจองที่นั่ง",
+    description="API สำหรับระบบจองตั๋วโรงภาพยนต์และระบบสมาชิก",
     version="1.0.0",
 )
 

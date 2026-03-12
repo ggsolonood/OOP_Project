@@ -3,7 +3,7 @@ from enums import GoodsType
 
 
 class Goods:
-    def __init__(self, name: str, values: int, price: float,
+    def __init__(self, name: str, values: int, price: float, 
                  goods_type: GoodsType, flavor: str = None):
         self.__name       = name
         self.__values     = values
