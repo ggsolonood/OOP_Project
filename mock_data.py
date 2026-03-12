@@ -36,7 +36,7 @@ def setup_mock_data():
     m2 = Movie("M02", "Batman", 160.0, Genre.ACTION, "15+")
     m3 = Movie("M03", "Jurassic World", 200.0, Genre.SCI_FI, "13+") # แทน Dune
     m4 = Movie("M04", "Avengers", 180.0, Genre.ACTION, "13+")       # แทน Inception
-    m5 = Movie("M05", "Avatar", 190.0, Genre.SCI_FI, "G")           # หนังใหม่
+    m5 = Movie("M05", "Avatar", 190.0, Genre.SCI_FI, "7+")           # หนังใหม่
     
     # แจกจ่ายหนังลงสาขา
     cpx1.add_movie(m1); cpx1.add_movie(m2); cpx1.add_movie(m3); cpx1.add_movie(m5)
