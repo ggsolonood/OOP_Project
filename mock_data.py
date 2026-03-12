@@ -1,99 +1,73 @@
-from datetime import datetime
-from enums import SeatType, MemberTier
-from theater import Movie, Theater, Seat, Showtime
-from cineplex import Cineplex, JamorCineplex
+from datetime import datetime, timedelta
 from payment import Bank
+from enums import MemberTier, TheaterType, SeatType, GoodsType
+from theater import Movie, Theater, Seat, Showtime, Cineplex
+from user import User, DiscountCoupon, ExchangeCoupon
+from cineplex import JamorCineplex
+from goods import Goods, Reward
 
-bank = Bank("KrungThai")
-bank.create_account("Popo","13579",1000)
+bank = Bank()
 system = JamorCineplex(bank)
 
-# ── Cineplex C – goods only ────────────────────────────────────────────────
-cineplex_c = Cineplex("CPX_C", "C")
-cineplex_c.add_goods("Popcorn", 100, 50, "Popcorn", flavor="Cheese")
-system.add_cineplex(cineplex_c)
+def setup_mock_data():
+    bank.create_account("ACC01", 10000)
+    bank.create_account("ACC02", 10000)
+    bank.create_account("ACC03", 10000)
 
-# ── Cineplex Siam Paragon ─────────────────────────────────────────────────
-cineplex_siam = Cineplex("CPX01", "Siam Paragon")
+    # 1. สร้าง User
+    u1 = User("U01", "Pooh", MemberTier.SILVER)
+    u2 = User("U02", "Ken", MemberTier.GOLD)
+    u3 = User("U03", "GuestUser", MemberTier.GUEST)
+    
+    u1.add_coupon(DiscountCoupon("CP01", "Discount 50 THB", 50.0))
+    u1.add_coupon(ExchangeCoupon("CP02", "Free Popcorn", ["G01"]))
+    
+    system.add_user(u1)
+    system.add_user(u2)
+    system.add_user(u3)
 
-# Theater 1 — Standard
-theater1 = Theater.create("T01", "Standard")
-theater1.add_seat(Seat("S01", "A1", SeatType.NORMALSEAT))
-theater1.add_seat(Seat("S02", "A2", SeatType.NORMALSEAT))
-theater1.add_seat(Seat("S03", "B1", SeatType.SOFA))
-theater1.add_seat(Seat("S04", "B2", SeatType.SOFA))
-theater1.add_seat(Seat("S05", "C1", SeatType.HONEYMOONBED))
-theater1.add_seat(Seat("S06", "C2", SeatType.HONEYMOONBED))
-cineplex_siam.add_theater(theater1)
+    # 2. สร้าง Cineplex
+    cpx1 = Cineplex("C01", "Siam Paragon")
+    cpx2 = Cineplex("C02", "Sukhumvit")
+    system.add_cineplex(cpx1)
+    system.add_cineplex(cpx2)
 
-# Theater 2 — IMAX
-theater2 = Theater.create("T02", "IMAX")
-theater2.add_seat(Seat("S07", "A1", SeatType.NORMALSEAT))
-theater2.add_seat(Seat("S08", "A2", SeatType.NORMALSEAT))
-theater2.add_seat(Seat("S09", "B1", SeatType.NORMALSEAT))
-theater2.add_seat(Seat("S10", "B2", SeatType.NORMALSEAT))
-cineplex_siam.add_theater(theater2)
+    # 3. สร้าง Movie (มีราคา Base Price ของหนังด้วย)
+    m1 = Movie("M01", "Spider-Man", 150.0)
+    m2 = Movie("M02", "Batman", 160.0)
+    m3 = Movie("M03", "Dune (Siam Only)", 200.0)
+    m4 = Movie("M04", "Inception (Suk Only)", 180.0)
+    
+    cpx1.add_movie(m1); cpx1.add_movie(m2); cpx1.add_movie(m3)
+    cpx2.add_movie(m1); cpx2.add_movie(m2); cpx2.add_movie(m4)
 
-# Movies
-movie1 = Movie("M01", "The Matrix", 120, "Sci-Fi", "13+")
-movie2 = Movie("M02", "Avengers: Endgame", 181, "Action", "13+")
-cineplex_siam.add_movie(movie1)
-cineplex_siam.add_movie(movie2)
+    # 4. สร้าง Theater & Seat (เพิ่ม 4DX)
+    def build_theater_for_cpx(t_id, cpx, t_type=TheaterType.STANDARD):
+        t = Theater(t_id, t_type)
+        for i in range(1, 7):
+            s_type = SeatType.SOFA if i > 4 else SeatType.NORMALSEAT
+            t.add_seat(Seat(f"S_{t_id}_{i:02d}", f"A{i}", s_type))
+        cpx.add_theater(t)
+        return t
 
-# Showtimes
-showtime1 = Showtime(
-    "ST01", movie1, theater1, "Active", "TH",
-    start_time=datetime(2026, 3, 11, 10, 0),
-    base_price=200,
-)
-showtime2 = Showtime(
-    "ST02", movie1, theater1, "Active", "EN",
-    start_time=datetime(2026, 3, 11, 14, 0),
-    base_price=200,
-)
-showtime3 = Showtime(
-    "ST03", movie2, theater2, "Active", "TH",
-    start_time=datetime(2026, 3, 11, 13, 0),
-    base_price=350,
-)
-cineplex_siam.add_showtime(showtime1)
-cineplex_siam.add_showtime(showtime2)
-cineplex_siam.add_showtime(showtime3)
-theater1.add_showtime(showtime1)
-theater1.add_showtime(showtime2)
-theater2.add_showtime(showtime3)
+    t1_siam = build_theater_for_cpx("T01", cpx1, TheaterType.STANDARD)
+    t2_siam = build_theater_for_cpx("T02", cpx1, TheaterType.IMAX)
+    t1_suk  = build_theater_for_cpx("T03", cpx2, TheaterType.STANDARD)
+    t2_suk  = build_theater_for_cpx("T04", cpx2, TheaterType._4DX) # ใช้ 4DX ตามที่ขอ
 
-# Goods
-cineplex_siam.add_goods("Popcorn Butter", 200, 60, "Popcorn", flavor="Butter")
-cineplex_siam.add_goods("Popcorn Caramel", 150, 60, "Popcorn", flavor="Caramel")
-cineplex_siam.add_goods("Coke", 300, 50, "Drinks", flavor="Original")
-cineplex_siam.add_goods("Nachos", 100, 80, "Snack")
+    # 5. สร้าง Showtime
+    now = datetime.now()
+    t_early = now + timedelta(hours=2)
+    t_late  = now + timedelta(hours=5)
+    
+    Showtime("ST01", m1, t1_siam, t_early)
+    Showtime("ST02", m3, t2_siam, t_late)
+    Showtime("ST03", m2, t1_suk,  t_early)
+    Showtime("ST04", m4, t2_suk,  t_late)
 
-system.add_cineplex(cineplex_siam)
+    # 6. สร้าง สินค้าและรางวัล
+    cpx1.add_goods(Goods("G01", "Popcorn", 100, 50, GoodsType.POPCORN))
+    cpx2.add_goods(Goods("G02", "Cola", 50, 100, GoodsType.DRINKS))
+    cpx1.add_reward(Reward("R01", "Free Ticket", 1000))
 
-# ── Users ─────────────────────────────────────────────────────────────────
-system.register_member("J",   "01-01-1990", "M001", "2023-01-01")
-system.register_member("Ken", "01-01-2000", "U01",  "2023-01-01",
-                       email="ken@mail.com", phone_number="081")
-
-# ให้แต้ม M001 ไว้เทสระบบแลกของรางวัล
-test_user = system.search_user_by_id("M001")
-if test_user:
-    test_user.add_point(500)
-
-# Reset tier to GUEST (pending /register via API)
-system.search_user_by_id("M001").change_type(MemberTier.GUEST)
-system.search_user_by_id("U01").change_type(MemberTier.GUEST)
-
-# ── Coupons ───────────────────────────────────────────────────────────────
-system.process_create_coupon("discount", "Discount 10", discount=10)
-system.process_create_coupon("discount", "Discount 20 (limited)", discount=20,
-                             last_date="2026-12-31 23:59")
-
-# ── Rewards ───────────────────────────────────────────────────────────────
-system.process_create_reward("Free Popcorn (M)", 10, 50)
-system.process_create_reward("Movie Ticket (Standard)", 300, 10)
-
-system.process_create_booking("U01","CPX01","ST01",["A1"])
-system.process_create_booking("M001","CPX01","ST01",["A2"])
-system.complete("BKG-00002")
+setup_mock_data()

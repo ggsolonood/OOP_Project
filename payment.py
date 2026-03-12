@@ -1,93 +1,39 @@
-from typing import List, Optional
-from enums import OrderStatus
-
-
 class Account:
-    def __init__(self, name: str, balance: float, account_id: str):
-        self.__name    = name
+    def __init__(self, account_id: str, balance: float):
+        self.__id = account_id
         self.__balance = balance
-        self.__id      = account_id
 
-    def get_id(self) -> str:
+    @property
+    def id(self):
         return self.__id
 
-    def get_balance(self) -> float:
+    @property
+    def balance(self):
         return self.__balance
 
-    def decrease_balance(self, amount: float) -> bool:
+    def decrease(self, amount: float) -> bool:
         if self.__balance >= amount:
             self.__balance -= amount
             return True
         return False
 
-    def increase_balance(self, amount: float) -> bool:
+    def increase(self, amount: float):
         self.__balance += amount
-        return True
-
 
 class Bank:
-    def __init__(self, name: str):
-        self.__name         = name
-        self.__account_list: List[Account] = []
+    def __init__(self):
+        self.__accounts = {}
 
-    @property
-    def name(self) -> str:
-        return self.__name
+    def create_account(self, account_id: str, balance: float) -> Account:
+        acc = Account(account_id, balance)
+        self.__accounts[account_id] = acc
+        return acc
 
-    def create_account(self, name: str, account_id: str, balance: float) -> Account:
-        account = Account(name, balance,account_id)
-        self.__account_list.append(account)
-        return account
+    def pay(self, account_id: str, amount: float) -> bool:
+        if account_id in self.__accounts:
+            return self.__accounts[account_id].decrease(amount)
+        return False
 
-    def _find_account(self, account_id: str) :
-        for acc in self.__account_list:
-            if acc.get_id() == account_id:
-                return acc
-        return None
-
-    def payment(self, account_id: str, amount: float) -> bool:
-        account = self._find_account(account_id)
-        if not account : return "Account not found"
-        return account.decrease_balance(amount) 
-    
-    def refund(self, account_id: str, amount: float) -> bool:
-        account = self._find_account(account_id)
-        return account.increase_balance(amount) if account else False
-
-
-class Order:
-    def __init__(self, order_id: str, goods_name: str, values: int,
-                 account_id: str, total_paid: float,
-                 coupon_id: str = None,
-                 status: OrderStatus = OrderStatus.COMPLETED,
-                 user_id: str = ""):
-        self.__order_id   = order_id
-        self.__goods_name = goods_name
-        self.__values     = values
-        self.__account_id = account_id
-        self.__total_paid = total_paid
-        self.__coupon_id  = coupon_id
-        self.__status     = status
-        self.__user_id    = user_id
-
-    def get_order_id(self) -> str:
-        return self.__order_id
-
-    def get_user_id(self) -> str:
-        return self.__user_id
-
-    def get_status(self) -> str:
-        return self.__status.value if isinstance(self.__status, OrderStatus) else self.__status
-
-    def update_status(self, status: OrderStatus):
-        self.__status = status
-        return "success"
-
-    def get_payment_details(self):
-        return self.__account_id, self.__total_paid
-
-    def get_items(self):
-        return self.__goods_name, self.__values
-
-    def get_used_coupon(self) -> Optional[str]:
-        return self.__coupon_id
+    def refund(self, account_id: str, amount: float):
+        if account_id in self.__accounts:
+            self.__accounts[account_id].increase(amount)

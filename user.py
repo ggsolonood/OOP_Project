@@ -1,238 +1,119 @@
-from typing import List, Optional
 from datetime import datetime
 from enums import MemberTier, BookingStatus
-from theater import Showtime, Movie, Theater, ShowtimeSeat
+from goods import Order
 
-
-# ── Reward ────────────────────────────────────────────────────────────────
-
-class Reward:
-    def __init__(self, reward_id: str, name: str, point_cost: int, stock: int):
-        self.__reward_id  = reward_id
-        self.__name       = name
-        self.__point_cost = point_cost
-        self.__stock      = stock
+class Coupon:
+    def __init__(self, coupon_id: str, name: str):
+        self.__id = coupon_id
+        self.__name = name
+        self.__is_used = False
 
     @property
-    def id(self) -> str:
-        return self.__reward_id
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    
+    @property
+    def is_used(self): return self.__is_used
+    @is_used.setter
+    def is_used(self, val: bool):
+        self.__is_used = val
+
+class DiscountCoupon(Coupon):
+    def __init__(self, coupon_id: str, name: str, discount_amount: float):
+        super().__init__(coupon_id, name)
+        self.__discount_amount = discount_amount
 
     @property
-    def name(self) -> str:
-        return self.__name
+    def discount_amount(self): return self.__discount_amount
+
+class ExchangeCoupon(Coupon):
+    def __init__(self, coupon_id: str, name: str, goods_list: list):
+        super().__init__(coupon_id, name)
+        self.__goods_list = goods_list
 
     @property
-    def point_cost(self) -> int:
-        return self.__point_cost
+    def goods_list(self): return self.__goods_list
 
-    @property
-    def stock(self) -> int:
-        return self.__stock
-
-    def decrease_stock(self) -> bool:
-        if self.__stock > 0:
-            self.__stock -= 1
-            return True
-        return False
-
-
-# ── Booking ───────────────────────────────────────────────────────────────
 
 class Booking:
-    def __init__(self, booking_id: str, user, showtime: Showtime,
-                 timestamp: datetime, status: BookingStatus, total_price: float = 0.0, account_id = None):
-        self.__booking_id    = booking_id
-        self.__user          = user
-        self.__showtime      = showtime
-        self.__ticket        = None
-        self.__timestamp     = timestamp
-        self.__showtime_seat: List[ShowtimeSeat] = []
-        self.__status        = status
-        self.__total_price   = total_price
-        self.__account = account_id
+    def __init__(self, booking_id: str, showtime_id: str, seat_ids: list, total: float, coupon_id: str = None):
+        self.__id = booking_id
+        self.__showtime_id = showtime_id
+        self.__seat_ids = seat_ids
+        self.__total = total
+        self.__coupon_id = coupon_id
+        self.__account_id = None
+        self.__status = BookingStatus.PENDING
+
     @property
-    def account(self):
-        return self.__account
+    def id(self): return self.__id
+    @property
+    def showtime_id(self): return self.__showtime_id
+    @property
+    def coupon_id(self): return self.__coupon_id
     
-    @account.setter
-    def account(self, account):
-        account = account
-        
     @property
-    def id(self) -> str:
-        return self.__booking_id
+    def seat_ids(self): return self.__seat_ids
+    @seat_ids.setter
+    def seat_ids(self, ids: list): self.__seat_ids = ids
 
     @property
-    def showtime(self) -> Showtime:
-        return self.__showtime
+    def total(self): return self.__total
+    @total.setter
+    def total(self, val: float): self.__total = val
 
     @property
-    def status(self) -> BookingStatus:
-        return self.__status
+    def account_id(self): return self.__account_id
+    @account_id.setter
+    def account_id(self, val: str): self.__account_id = val
 
     @property
-    def showtime_seat(self) -> List[ShowtimeSeat]:
-        return self.__showtime_seat
-
-    @property
-    def total_price(self) -> float:
-        return self.__total_price
-
-    @property
-    def ticket(self):
-        return self.__ticket
-
-    @showtime_seat.setter
-    def showtime_seat(self, seats):
-        self.__showtime_seat = seats
-
-    @total_price.setter
-    def total_price(self, price):
-        self.__total_price = price
-
+    def status(self): return self.__status
     @status.setter
-    def status(self, stat):
-        self.__status = stat
-
-    @ticket.setter
-    def ticket(self, tk):
-        self.__ticket = tk
-
-
-# ── Ticket ────────────────────────────────────────────────────────────────
-
-class Ticket:
-    def __init__(self, booking: Booking, cineplex, user, movie: Movie,
-                 theater: Theater, showtime: Showtime, seat_list: list):
-        self.__booking  = booking
-        self.__cineplex = cineplex
-        self.__user     = user
-        self.__movie    = movie
-        self.__theater  = theater
-        self.__showtime = showtime
-        self.seat_list  = seat_list
-
-
-# ── User ──────────────────────────────────────────────────────────────────
+    def status(self, val: BookingStatus): self.__status = val
 
 class User:
-    def __init__(self, id: str, name: str, email: str = "",
-                 phone_number: str = "", birthday: str = "", password: str = ""):
-        """
-        สร้าง User ใหม่
-        - Guest  : ต้องการแค่ id + name (email ถ้ามี)
-        - Member : เพิ่ม phone_number, birthday, password ตอน register
-        """
-        self.__id             = id
-        self.__name           = name
-        self.__email          = email
-        self.__phone_number   = phone_number
-        self.__birthday       = birthday
-        self.__password       = password
-        self.__point          = 0
-        self.__coupon_list    = []
-        self.__ticket_list    = []
-        self.__booking_list:  List[Booking] = []
-        self.__reward_history: list = []   # [{"reward_id", "name", "point_cost", "redeemed_at"}]
-        self.__total_spending = 0
-        self.__type_user      = MemberTier.GUEST
-        self.__last_monthly_coupon: Optional[str] = None  # "YYYY-MM" ของเดือนล่าสุดที่รับ
+    def __init__(self, user_id: str, name: str, tier: MemberTier = MemberTier.GUEST):
+        self.__id = user_id
+        self.__name = name
+        self.__tier = tier
+        self.__points = 0
+        self.__penalty_end = None
+        self.__coupons = []
+        self.__bookings = []
+        self.__orders = []
 
     @property
-    def id(self) -> str:
-        return self.__id
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    @property
+    def penalty_end(self): return self.__penalty_end
+    @property
+    def bookings(self): return self.__bookings
+    @property
+    def orders(self): return self.__orders
+    @property
+    def coupons(self): return self.__coupons
+    @property
+    def points(self): return self.__points
 
     @property
-    def name(self) -> str:
-        return self.__name
+    def tier(self): return self.__tier
+    @tier.setter
+    def tier(self, val: MemberTier): self.__tier = val
 
     @property
-    def email(self) -> str:
-        return self.__email
+    def discount(self) -> float:
+        if self.__tier == MemberTier.SILVER: return 0.05
+        if self.__tier == MemberTier.GOLD: return 0.10
+        if self.__tier == MemberTier.PLATINUM: return 0.15
+        return 0.0
 
-    @property
-    def phone_number(self) -> str:
-        return self.__phone_number
+    def decrease_points(self, amount: int): self.__points -= amount
+    def add_points(self, amount: int): self.__points += amount
 
-    @property
-    def birthday(self) -> str:
-        return self.__birthday
-
-    @property
-    def booking_list(self) -> List[Booking]:
-        return self.__booking_list
-
-    @property
-    def tier(self) -> MemberTier:
-        return self.__type_user
-
-    def get_member_id(self) -> str:
-        return self.__id
-
-    def get_discount(self) -> float:
-        return self.__type_user.get_discount()
-
-    def get_point(self) -> int:
-        return self.__point
-
-    def add_point(self, p: int):
-        self.__point += p
-
-    def deduct_point(self, p: int) -> bool:
-        if self.__point >= p:
-            self.__point -= p
-            return True
-        return False
-
-    def add_booking(self, b: Booking):
-        self.__booking_list.append(b)
-
-    def add_ticket(self, t: Ticket):
-        self.__ticket_list.append(t)
-
-    def add_reward_history(self, reward_id: str, name: str, point_cost: int):
-        from datetime import datetime
-        self.__reward_history.append({
-            "reward_id":  reward_id,
-            "name":       name,
-            "point_cost": point_cost,
-            "redeemed_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        })
-
-    def get_reward_history(self) -> list:
-        return list(self.__reward_history)
-
-    def get_last_monthly_coupon(self) -> Optional[str]:
-        return self.__last_monthly_coupon
-
-    def set_last_monthly_coupon(self, ym: str):
-        """ym = 'YYYY-MM'"""
-        self.__last_monthly_coupon = ym
-
-    def add_password(self, password: str):
-        self.__password = password
-
-    def set_profile(self, phone_number: str = "", birthday: str = ""):
-        """อัปเดตข้อมูลโปรไฟล์ตอนสมัครสมาชิก"""
-        if phone_number:
-            self.__phone_number = phone_number
-        if birthday:
-            self.__birthday = birthday
-
-    def check_password(self, password: str) -> bool:
-        return self.__password == password
-
-    def has_password(self) -> bool:
-        return bool(self.__password)
-
-    def change_type(self, tier: MemberTier):
-        self.__type_user = tier
-
-    def set_tier(self, tier: MemberTier):
-        self.__type_user = tier
-
-    def search_booking_by_id(self, booking_id: str) -> Optional[Booking]:
-        for b in self.__booking_list:
-            if b.id == booking_id:
-                return b
-        return None
+    def add_coupon(self, coupon: Coupon): self.__coupons.append(coupon)
+    def add_booking(self, bkg: Booking): self.__bookings.append(bkg)
+    def add_order(self, order: Order): self.__orders.append(order)
