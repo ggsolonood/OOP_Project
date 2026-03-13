@@ -44,10 +44,13 @@ class Order:
     def account_number(self): return self.__account_number
     @property
     def coupon_id(self): return self.__coupon_id
+    
     @property
     def status(self): return self.__status
-    @status.setter
-    def status(self, val: OrderStatus): self.__status = val
+    
+    # Method เปลี่ยนสถานะ
+    def complete(self): self.__status = OrderStatus.COMPLETED
+    def cancel(self): self.__status = OrderStatus.CANCELLED
 
 class Reward:
     def __init__(self, reward_id: str, name: str, points: int):

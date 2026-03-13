@@ -8,8 +8,8 @@ from enums import MemberTier, BookingStatus, OrderStatus, SeatStatus, TicketStat
 class JamorCineplex:
     def __init__(self, bank: Bank):
         self.__bank = bank
-        self.__cineplexes = [] # เปลี่ยนจาก dict {} เป็น list []
-        self.__users = []      # เปลี่ยนจาก dict {} เป็น list []
+        self.__cineplexes = [] 
+        self.__users = []      
         self.__order_counter = 1
         self.__booking_counter = 1
         self.__ticket_counter = 1
@@ -149,7 +149,9 @@ class JamorCineplex:
 
         for s_id in seat_ids:
             seat = theater_seats[s_id]
-            st.showtime_seats[s_id] = ShowtimeSeat(seat.id, seat.number, seat.type)
+            new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
+            new_st_seat.book() # เรียกผ่าน Method
+            st.showtime_seats[s_id] = new_st_seat
         
         b_id = self.__gen_bkg_id()
         bkg = Booking(b_id, user_id, showtime_id, seat_ids, final_price, coupon_id)
@@ -162,8 +164,7 @@ class JamorCineplex:
         if not bkg or bkg.status != BookingStatus.PENDING: return False, "Invalid booking"
         
         if self.__bank.pay(account_number, bkg.total):
-            bkg.status = BookingStatus.CONFIRMED
-            bkg.account_number = account_number
+            bkg.confirm(account_number) # เปลี่ยนสถานะและบันทึกเลขบัญชีผ่าน Method
             user.add_points(int(bkg.total // 10))
             
             st, _ = self.__find_showtime(bkg.showtime_id)
@@ -171,11 +172,11 @@ class JamorCineplex:
             
             for s_id in bkg.seat_ids:
                 if s_id in st.showtime_seats:
-                    st.showtime_seats[s_id].status = SeatStatus.OCCUPIED
+                    st.showtime_seats[s_id].occupy() # เรียกผ่าน Method
                     seat_num = st.showtime_seats[s_id].number
                     t_id = self.__gen_tkt_id()
                     new_ticket = Ticket(t_id, booking_id, st.id, seat_num)
-                    user.add_ticket(new_ticket)
+                    bkg.add_ticket(new_ticket) # แอดตั๋วเข้า Booking
                     tickets_generated.append(f"Ticket: {t_id} (Seat: {seat_num})")
                     
             return True, f"Payment successful. Tickets generated: {', '.join(tickets_generated)}"
@@ -187,11 +188,10 @@ class JamorCineplex:
         
         if bkg.status == BookingStatus.CONFIRMED:
             self.__bank.refund(bkg.account_number, bkg.total)
-            for t in user.tickets:
-                if t.booking_id == booking_id:
-                    t.status = TicketStatus.CANCELLED
+            for t in bkg.tickets:
+                t.cancel() # เรียกผ่าน Method ยกเลิกตั๋ว
         
-        bkg.status = BookingStatus.CANCELLED
+        bkg.cancel() # เรียกผ่าน Method ยกเลิกจอง
         
         if bkg.coupon_id:
             coupon = next((c for c in user.coupons if c.id == bkg.coupon_id), None)
@@ -235,7 +235,6 @@ class JamorCineplex:
             for g_id, qty in items_dict.items(): cpx_goods[g_id].decrease_stock(qty)
             o_id = self.__gen_ord_id()
             user.add_order(Order(o_id, user_id, items_dict, total, account_number, coupon_id))
-            
             return True, f"Order {o_id} successful | User ID: {user.id} | Bought: {', '.join(items_bought)}. Total Paid: {total} THB."
             
         return False, "Payment failed. Check account number."
@@ -256,7 +255,7 @@ class JamorCineplex:
             coupon = next((c for c in user.coupons if c.id == order.coupon_id), None)
             if coupon: coupon.is_used = False
 
-        order.status = OrderStatus.CANCELLED
+        order.cancel() # เรียกผ่าน Method
         return True, f"Order {order_id} cancelled and refunded successfully."
 
     def upgrade_member(self, user_id: str, account_number: str):
@@ -356,7 +355,7 @@ class JamorCineplex:
         if bkg.status == BookingStatus.CONFIRMED:
             if diff > 0: self.__bank.refund(bkg.account_number, diff)
             
-            booking_tickets = [t for t in user.tickets if t.booking_id == booking_id and t.status != TicketStatus.CANCELLED]
+            booking_tickets = [t for t in bkg.tickets if t.status != TicketStatus.CANCELLED]
             
             for s_id in bkg.seat_ids: 
                 if s_id in st.showtime_seats: del st.showtime_seats[s_id]
@@ -364,7 +363,7 @@ class JamorCineplex:
             for i, s_id in enumerate(new_seat_ids): 
                 seat = theater_seats[s_id]
                 new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-                new_st_seat.status = SeatStatus.OCCUPIED
+                new_st_seat.occupy() # เรียกผ่าน Method
                 st.showtime_seats[s_id] = new_st_seat
                 if i < len(booking_tickets):
                     booking_tickets[i].seat_number = seat.number
@@ -375,7 +374,7 @@ class JamorCineplex:
             for s_id in new_seat_ids: 
                 seat = theater_seats[s_id]
                 new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-                new_st_seat.status = SeatStatus.BOOKED 
+                new_st_seat.book() # เรียกผ่าน Method
                 st.showtime_seats[s_id] = new_st_seat
 
         bkg.seat_ids = new_seat_ids 
@@ -406,15 +405,14 @@ class JamorCineplex:
         st, cpx = self.__find_showtime(bkg.showtime_id)
         
         tickets_info = []
-        for t in user.tickets:
-            if t.booking_id == booking_id:
-                tickets_info.append({
-                    "ticket_id": t.id,
-                    "movie": st.movie.name,
-                    "cineplex": cpx.name,
-                    "theater": st.theater.name,
-                    "showtime": st.start_time.strftime("%Y-%m-%d %H:%M"),
-                    "seat": t.seat_number,
-                    "status": t.status.value
-                })
+        for t in bkg.tickets: # ดึงจาก Booking แทน
+            tickets_info.append({
+                "ticket_id": t.id,
+                "movie": st.movie.name,
+                "cineplex": cpx.name,
+                "theater": st.theater.name,
+                "showtime": st.start_time.strftime("%Y-%m-%d %H:%M"),
+                "seat": t.seat_number,
+                "status": t.status.value
+            })
         return True, tickets_info

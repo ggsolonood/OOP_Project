@@ -40,8 +40,10 @@ class ShowtimeSeat(Seat):
 
     @property
     def status(self): return self.__status
-    @status.setter
-    def status(self, val: SeatStatus): self.__status = val
+    
+    # Method เปลี่ยนสถานะ
+    def book(self): self.__status = SeatStatus.BOOKED
+    def occupy(self): self.__status = SeatStatus.OCCUPIED
 
 class Theater:
     def __init__(self, theater_id: str, t_type: TheaterType, name: str):

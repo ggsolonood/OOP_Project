@@ -54,10 +54,13 @@ class Ticket:
     def seat_number(self): return self.__seat_number
     @seat_number.setter
     def seat_number(self, val: str): self.__seat_number = val
+    
     @property
     def status(self): return self.__status
-    @status.setter
-    def status(self, val: TicketStatus): self.__status = val
+    
+    # Method เปลี่ยนสถานะตั๋ว
+    def use(self): self.__status = TicketStatus.USED
+    def cancel(self): self.__status = TicketStatus.CANCELLED
 
 class Booking:
     def __init__(self, booking_id: str, user_id: str, showtime_id: str, seat_ids: list, total: float, coupon_id: str = None):
@@ -70,6 +73,7 @@ class Booking:
         self.__account_number = None
         self.__status = BookingStatus.PENDING
         self.__created_at = datetime.now()
+        self.__tickets = [] # ย้ายมารวมที่นี่
 
     @property
     def id(self): return self.__id
@@ -87,16 +91,24 @@ class Booking:
     def total(self, val: float): self.__total = val
     @property
     def account_number(self): return self.__account_number
-    @account_number.setter
-    def account_number(self, val: str): self.__account_number = val
     @property
     def coupon_id(self): return self.__coupon_id
     @property
-    def status(self): return self.__status
-    @status.setter
-    def status(self, val: BookingStatus): self.__status = val
-    @property
     def created_at(self): return self.__created_at
+    
+    @property
+    def tickets(self): return self.__tickets
+    def add_ticket(self, ticket: Ticket): self.__tickets.append(ticket)
+
+    @property
+    def status(self): return self.__status
+    
+    # Method เปลี่ยนสถานะการจอง
+    def confirm(self, account_number: str): 
+        self.__status = BookingStatus.CONFIRMED
+        self.__account_number = account_number
+    def complete(self): self.__status = BookingStatus.COMPLETED
+    def cancel(self): self.__status = BookingStatus.CANCELLED
 
 class User:
     def __init__(self, user_id: str, name: str, birth_date: str, email: str = "", phone: str = ""):
@@ -112,7 +124,6 @@ class User:
         self.__coupons = []
         self.__bookings = []
         self.__orders = []
-        self.__tickets = []
 
     @property
     def id(self): return self.__id
@@ -132,8 +143,6 @@ class User:
     def orders(self): return self.__orders
     @property
     def coupons(self): return self.__coupons
-    @property
-    def tickets(self): return self.__tickets
     @property
     def points(self): return self.__points
     @property
@@ -160,4 +169,3 @@ class User:
     def add_coupon(self, coupon: Coupon): self.__coupons.append(coupon)
     def add_booking(self, bkg: Booking): self.__bookings.append(bkg)
     def add_order(self, order: Order): self.__orders.append(order)
-    def add_ticket(self, ticket: Ticket): self.__tickets.append(ticket)
