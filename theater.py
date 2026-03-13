@@ -1,217 +1,145 @@
-from typing import List, Optional
-from datetime import datetime , timedelta
-from enums import SeatType, TheaterType, BookingStatus
+from datetime import datetime
+from enums import SeatType, TheaterType, SeatStatus, Genre
 
-
-class Seat:
-    def __init__(self, seat_id: str, seat_number: str, type_seat: SeatType):
-        self.__seat_id     = seat_id
-        self.__seat_number = seat_number
-        self.__type_seat   = (type_seat if isinstance(type_seat, SeatType)
-                              else SeatType.from_str(str(type_seat)))
-
-    @property
-    def id(self) -> str:
-        return self.__seat_id
-
-    @property
-    def seat_number(self) -> str:
-        return self.__seat_number
-
-    @property
-    def type_seat(self) -> SeatType:
-        return self.__type_seat
-
-
-class Theater:
-    def __init__(self, theater_id: str, type_theater: TheaterType):
-        self.__theater_id    = theater_id
-        self.__seats_list:   List[Seat] = []
-        self.__type_theater  = (type_theater if isinstance(type_theater, TheaterType)
-                                else TheaterType.from_str(str(type_theater)))
-        self.__showtime_list: list      = []
-
-    @classmethod
-    def create(cls, theater_id: str, type_str: str) -> "Theater":
-        return cls(theater_id, TheaterType.from_str(type_str))
-
-    @property
-    def id(self) -> str:
-        return self.__theater_id
-
-    @property
-    def type_theater(self) -> TheaterType:
-        return self.__type_theater
-
-    @property
-    def showtime_list(self) -> list:
-        return self.__showtime_list
-
-    @property
-    def seats_list(self) -> List[Seat]:
-        return self.__seats_list
-
-    def add_seat(self, seat: Seat):
-        self.__seats_list.append(seat)
-
-    def search_seat_by_no(self, seat_no: str) -> Optional[Seat]:
-        for s in self.__seats_list:
-            if s.seat_number == seat_no:
-                return s
-        return None
-
-    def add_showtime(self, showtime):
-        self.__showtime_list.append(showtime)
-
-    def has_conflict(self, dt_start: datetime, dt_end: datetime) -> bool:
-        for st in self.__showtime_list:
-            if dt_start < st.end_time and dt_end > st.start_time:
-                return True
-        return False
-
-
-class Movie:
-    def __init__(self, id: str, name: str, duration: int, genre: str, age_rating: str):
-        self.__movie_id   = id
-        self.__movie_name = name
-        self.__duration   = duration
-        self.__genre      = genre
-        self.__age_rating = age_rating
-        self.__review = []
-
-    @property
-    def id(self) -> str:
-        return self.__movie_id
-
-    @property
-    def name(self) -> str:
-        return self.__movie_name
-    
-    def add_review(self,review) :
-        self.__review.append(review)
-
-    @property
-    def duration(self) :
-        return self.__duration
-    
-    @property
-    def review(self) :
-        return self.__review
-
-class ShowtimeSeat(Seat):
-    def __init__(self, seat: Seat, status: BookingStatus):
-        super().__init__(seat.id, seat.seat_number, seat.type_seat)
-        self.__status = status
-
-    @property
-    def status(self) -> BookingStatus:
-        return self.__status
-    
-    def state(self) :
-        self.__status = "Available"
-        return self.__status
-
-
-class Showtime:
-    DT_FORMAT = "%Y-%m-%d %H:%M"
-
-    def __init__(self, showtime_id: str, movie: Movie, theater: Theater,
-                 status: str, subtitle: str,
-                 start_time: datetime, base_price: float,
-                 end_time: datetime = None):
-        self.__id            = showtime_id
-        self.__movie         = movie
-        self.__theater       = theater
-        self.__status        = status
-        self.__subtitle      = subtitle
-        self.__start_time    = start_time
-        self.__base_price    = base_price
-        self.__showtime_seat: List[ShowtimeSeat] = []
-        self.__end_time      = (end_time if end_time is not None
-                                else start_time + timedelta(minutes=movie.duration))
-
-    # ... properties เหมือนเดิม ...
-
-    @property
-    def end_time(self) -> datetime:
-        return self.__end_time   # ✅ ใช้ค่าที่เก็บไว้จริง
-
-    @property
-    def id(self) -> str:
-        return self.__id
-
-    @property
-    def movie(self) -> Movie:
-        return self.__movie
-
-    @property
-    def theater(self) -> Theater:
-        return self.__theater
-
-    @property
-    def status(self) -> str:
-        return self.__status
-
-    @property
-    def subtitle(self) -> str:
-        return self.__subtitle
-
-    @property
-    def base_price(self) -> float:
-        return self.__base_price
-
-    @property
-    def start_time(self) -> datetime:
-        return self.__start_time
-
-    @property
-    def end_time(self) -> datetime:
-        return self.__start_time + timedelta(minutes=self.__movie.duration)
-
-    def is_upcoming(self) -> bool:
-        return self.__start_time >= datetime.now()
-
-    def get_booked_seat_numbers(self) -> List[str]:
-        return [s.seat_number for s in self.__showtime_seat]
-
-    def get_available_seats(self) -> List[dict]:
-        booked = self.get_booked_seat_numbers()
-        return [
-            {
-                "seat_number": s.seat_number,
-                "type":        s.type_seat.value,
-                "price":       s.type_seat.get_price(),
-            }
-            for s in self.__theater.seats_list
-            if s.seat_number not in booked
-        ]
-
-    def is_seat_available(self, seat_no: str) -> bool:
-        for s in self.__showtime_seat:
-            if s.seat_number == seat_no:
-                return False
-        return True
-
-    def remove_seats(self, seat_nos: list):
-        self.__showtime_seat = [
-            s for s in self.__showtime_seat if s.seat_number not in seat_nos
-        ]
-
-
-    def add_seats(self, seats: list, status: BookingStatus) -> List[ShowtimeSeat]:
-        new_seats = []
-        for s in seats:
-            st_seat = ShowtimeSeat(s, status)
-            self.__showtime_seat.append(st_seat)
-            new_seats.append(st_seat)
-        return new_seats
-
-class Review :
-    def __init__(self,star,comment,author):
+class Review:
+    def __init__(self, star: int, comment: str, user_name: str):
         self.__star = star
         self.__comment = comment
-        self.__author = author
+        self.__user_name = user_name
+    
+    @property
+    def star(self): return self.__star
+    @property
+    def comment(self): return self.__comment
+    @property
+    def user_name(self): return self.__user_name
+
+class Seat:
+    def __init__(self, seat_id: str, number: str, s_type: SeatType):
+        self.__id = seat_id
+        self.__number = number
+        self.__type = s_type
 
     @property
-    def read(self) :
-        return f"{self.__author} {self.__star} ⭐\n\t{self.__comment}"
+    def id(self): return self.__id
+    @property
+    def number(self): return self.__number
+    @property
+    def type(self): return self.__type
+    @property
+    def price(self) -> float:
+        if self.__type == SeatType.NORMALSEAT: return 100.0
+        if self.__type == SeatType.SOFA: return 200.0
+        if self.__type == SeatType.HONEYMOONBED: return 350.0
+        return 0.0
+
+class ShowtimeSeat(Seat): 
+    def __init__(self, seat_id: str, number: str, s_type: SeatType):
+        super().__init__(seat_id, number, s_type)
+        self.__status = SeatStatus.BOOKED 
+
+    @property
+    def status(self): return self.__status
+    
+    # Method เปลี่ยนสถานะ
+    def book(self): self.__status = SeatStatus.BOOKED
+    def occupy(self): self.__status = SeatStatus.OCCUPIED
+
+class Theater:
+    def __init__(self, theater_id: str, t_type: TheaterType, name: str):
+        self.__id = theater_id
+        self.__type = t_type
+        self.__name = name
+        self.__seats = []
+
+    @property
+    def id(self): return self.__id
+    @property
+    def type(self): return self.__type
+    @property
+    def name(self): return self.__name
+    @property
+    def seats(self): return self.__seats
+    
+    @property
+    def additional_price(self) -> float:
+        if self.__type == TheaterType.IMAX: return 100.0
+        if self.__type == TheaterType._4DX: return 150.0
+        return 0.0
+
+    def add_seat(self, seat: Seat): self.__seats.append(seat)
+
+class Movie:
+    def __init__(self, movie_id: str, name: str, base_price: float, genre: Genre, age_rating: str):
+        self.__id = movie_id
+        self.__name = name
+        self.__base_price = base_price
+        self.__genre = genre
+        self.__age_rating = age_rating
+        self.__showtimes = []
+        self.__reviews = []
+    
+    @property
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    @property
+    def base_price(self): return self.__base_price
+    @property
+    def genre(self): return self.__genre
+    @property
+    def age_rating(self): return self.__age_rating
+    @property
+    def showtimes(self): return self.__showtimes
+    @property
+    def reviews(self): return self.__reviews
+
+    def add_showtime(self, showtime): self.__showtimes.append(showtime)
+    def add_review(self, review: Review): self.__reviews.append(review)
+
+class Showtime:
+    def __init__(self, showtime_id: str, movie: Movie, theater: Theater, start_time: datetime):
+        self.__id = showtime_id
+        self.__movie = movie
+        self.__theater = theater
+        self.__start_time = start_time
+        self.__showtime_seats = {} 
+        movie.add_showtime(self)
+
+    @property
+    def id(self): return self.__id
+    @property
+    def movie(self): return self.__movie
+    @property
+    def theater(self): return self.__theater
+    @property
+    def start_time(self): return self.__start_time
+    @property
+    def showtime_seats(self): return self.__showtime_seats
+
+class Cineplex:
+    def __init__(self, cineplex_id: str, name: str):
+        self.__id = cineplex_id
+        self.__name = name
+        self.__theaters = []
+        self.__movies = []
+        self.__goods = []
+        self.__rewards = []
+
+    @property
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    @property
+    def theaters(self): return self.__theaters
+    @property
+    def movies(self): return self.__movies
+    @property
+    def goods(self): return self.__goods
+    @property
+    def rewards(self): return self.__rewards
+
+    def add_theater(self, theater: Theater): self.__theaters.append(theater)
+    def add_movie(self, movie: Movie): self.__movies.append(movie)
+    def add_goods(self, item): self.__goods.append(item)
+    def add_reward(self, reward): self.__rewards.append(reward)

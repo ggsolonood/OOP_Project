@@ -1,47 +1,66 @@
-from typing import Optional
-from enums import GoodsType
-
+from enums import GoodsType, OrderStatus
 
 class Goods:
-    def __init__(self, name: str, values: int, price: float,
-                 goods_type: GoodsType, flavor: str = None):
-        self.__name       = name
-        self.__values     = values
-        self.__price      = price
-        self.__goods_type = (goods_type if isinstance(goods_type, GoodsType)
-                             else GoodsType.from_str(str(goods_type)))
-        self.__flavor     = flavor
-
-    @classmethod
-    def create(cls, name: str, values: int, price: float,
-               type_str: str, flavor: str = None) -> "Goods":
-        return cls(name, values, price, GoodsType.from_str(type_str), flavor)
+    def __init__(self, goods_id: str, name: str, price: float, stock: int, g_type: GoodsType):
+        self.__id = goods_id
+        self.__name = name
+        self.__price = price
+        self.__stock = stock
+        self.__type = g_type
 
     @property
-    def goods_type(self) -> GoodsType:
-        return self.__goods_type
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    @property
+    def price(self): return self.__price
+    @property
+    def stock(self): return self.__stock
+    @property
+    def type(self): return self.__type
+
+    def decrease_stock(self, amount: int): self.__stock -= amount
+    def increase_stock(self, amount: int): self.__stock += amount
+
+class Order:
+    def __init__(self, order_id: str, user_id: str, items: dict, total: float, account_number: str, coupon_id: str = None):
+        self.__id = order_id
+        self.__user_id = user_id
+        self.__items = items
+        self.__total = total
+        self.__account_number = account_number
+        self.__coupon_id = coupon_id
+        self.__status = OrderStatus.COMPLETED
 
     @property
-    def flavor(self) -> Optional[str]:
-        return self.__flavor
+    def id(self): return self.__id
+    @property
+    def user_id(self): return self.__user_id
+    @property
+    def items(self): return self.__items
+    @property
+    def total(self): return self.__total
+    @property
+    def account_number(self): return self.__account_number
+    @property
+    def coupon_id(self): return self.__coupon_id
+    
+    @property
+    def status(self): return self.__status
+    
+    # Method เปลี่ยนสถานะ
+    def complete(self): self.__status = OrderStatus.COMPLETED
+    def cancel(self): self.__status = OrderStatus.CANCELLED
 
-    def get_name(self) -> str:
-        return self.__name
-
-    def get_price(self) -> float:
-        return self.__price
+class Reward:
+    def __init__(self, reward_id: str, name: str, points: int):
+        self.__id = reward_id
+        self.__name = name
+        self.__points = points
 
     @property
-    def stock(self) -> int:
-        return self.__values
-
-    def check_values(self, amount_needed: int) -> bool:
-        return self.__values >= amount_needed
-
-    def clearstock(self, amount: int):
-        self.__values -= amount
-        return "success"
-
-    def restore_stock(self, amount: int):
-        self.__values += amount
-        return "success"
+    def id(self): return self.__id
+    @property
+    def name(self): return self.__name
+    @property
+    def points(self): return self.__points

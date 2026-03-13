@@ -1,99 +1,111 @@
-from datetime import datetime
-from enums import SeatType, MemberTier
-from theater import Movie, Theater, Seat, Showtime
-from cineplex import Cineplex, JamorCineplex
+from datetime import datetime, timedelta
 from payment import Bank
+from enums import MemberTier, TheaterType, SeatType, GoodsType, Genre, BookingStatus, TicketStatus
+from theater import Movie, Theater, Seat, Showtime, Cineplex
+from user import User, FixedDiscountCoupon
+from cineplex import JamorCineplex
+from goods import Goods, Reward
 
-bank = Bank("KrungThai")
-bank.create_account("Popo","13579",1000)
+bank = Bank()
 system = JamorCineplex(bank)
 
-# ── Cineplex C – goods only ────────────────────────────────────────────────
-cineplex_c = Cineplex("CPX_C", "C")
-cineplex_c.add_goods("Popcorn", 100, 50, "Popcorn", flavor="Cheese")
-system.add_cineplex(cineplex_c)
+def setup_mock_data():
+    bank.create_account("11111", "Pooh", 50000) 
+    bank.create_account("22222", "Ken", 50000) 
+    bank.create_account("33333", "GuestUser", 50000) 
+    
+    u1 = User("U01", "Pooh", "1995-01-01", "pooh@mail.com", "081")
+    u1.upgrade_tier() 
+    u2 = User("U02", "Ken", "1998-05-05", "ken@mail.com")
+    u2.upgrade_tier(); u2.upgrade_tier() 
+    u2.add_points(1500) 
+    u3 = User("U03", "GuestUser", "2000-10-10") 
+    
+    u1.add_coupon(FixedDiscountCoupon("CP01", "Discount 50", 50.0))
+    system.add_user(u1); system.add_user(u2); system.add_user(u3)
 
-# ── Cineplex Siam Paragon ─────────────────────────────────────────────────
-cineplex_siam = Cineplex("CPX01", "Siam Paragon")
+    cpx1 = Cineplex("C01", "Robinson")
+    cpx2 = Cineplex("C02", "Mega")
+    system.add_cineplex(cpx1); system.add_cineplex(cpx2)
 
-# Theater 1 — Standard
-theater1 = Theater.create("T01", "Standard")
-theater1.add_seat(Seat("S01", "A1", SeatType.NORMALSEAT))
-theater1.add_seat(Seat("S02", "A2", SeatType.NORMALSEAT))
-theater1.add_seat(Seat("S03", "B1", SeatType.SOFA))
-theater1.add_seat(Seat("S04", "B2", SeatType.SOFA))
-theater1.add_seat(Seat("S05", "C1", SeatType.HONEYMOONBED))
-theater1.add_seat(Seat("S06", "C2", SeatType.HONEYMOONBED))
-cineplex_siam.add_theater(theater1)
+    m1 = Movie("M01", "Spider-Man", 150.0, Genre.ACTION, "13+")
+    m2 = Movie("M02", "Batman", 160.0, Genre.ACTION, "15+")
+    m3 = Movie("M03", "Jurassic World", 200.0, Genre.SCI_FI, "13+")
+    m4 = Movie("M04", "Avengers", 180.0, Genre.ACTION, "13+")
+    m5 = Movie("M05", "Avatar", 190.0, Genre.SCI_FI, "7+")
+    
+    cpx1.add_movie(m1); cpx1.add_movie(m2); cpx1.add_movie(m3); cpx1.add_movie(m5)
+    cpx2.add_movie(m1); cpx2.add_movie(m2); cpx2.add_movie(m4); cpx2.add_movie(m5)
 
-# Theater 2 — IMAX
-theater2 = Theater.create("T02", "IMAX")
-theater2.add_seat(Seat("S07", "A1", SeatType.NORMALSEAT))
-theater2.add_seat(Seat("S08", "A2", SeatType.NORMALSEAT))
-theater2.add_seat(Seat("S09", "B1", SeatType.NORMALSEAT))
-theater2.add_seat(Seat("S10", "B2", SeatType.NORMALSEAT))
-cineplex_siam.add_theater(theater2)
+    t1_siam = Theater("T01", TheaterType.STANDARD, "Theater 1")
+    seats_t1_siam = [
+        Seat("S_T01_01", "A1", SeatType.NORMALSEAT), Seat("S_T01_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T01_03", "A3", SeatType.NORMALSEAT), Seat("S_T01_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T01_05", "A5", SeatType.SOFA),       Seat("S_T01_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t1_siam: t1_siam.add_seat(s)
+    cpx1.add_theater(t1_siam)
 
-# Movies
-movie1 = Movie("M01", "The Matrix", 120, "Sci-Fi", "13+")
-movie2 = Movie("M02", "Avengers: Endgame", 181, "Action", "13+")
-cineplex_siam.add_movie(movie1)
-cineplex_siam.add_movie(movie2)
+    t2_siam = Theater("T02", TheaterType.IMAX, "Theater 2")
+    seats_t2_siam = [
+        Seat("S_T02_01", "A1", SeatType.NORMALSEAT), Seat("S_T02_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T02_03", "A3", SeatType.NORMALSEAT), Seat("S_T02_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T02_05", "A5", SeatType.SOFA),       Seat("S_T02_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t2_siam: t2_siam.add_seat(s)
+    cpx1.add_theater(t2_siam)
 
-# Showtimes
-showtime1 = Showtime(
-    "ST01", movie1, theater1, "Active", "TH",
-    start_time=datetime(2026, 3, 11, 10, 0),
-    base_price=200,
-)
-showtime2 = Showtime(
-    "ST02", movie1, theater1, "Active", "EN",
-    start_time=datetime(2026, 3, 11, 14, 0),
-    base_price=200,
-)
-showtime3 = Showtime(
-    "ST03", movie2, theater2, "Active", "TH",
-    start_time=datetime(2026, 3, 11, 13, 0),
-    base_price=350,
-)
-cineplex_siam.add_showtime(showtime1)
-cineplex_siam.add_showtime(showtime2)
-cineplex_siam.add_showtime(showtime3)
-theater1.add_showtime(showtime1)
-theater1.add_showtime(showtime2)
-theater2.add_showtime(showtime3)
+    t1_suk = Theater("T03", TheaterType.STANDARD, "Theater A")
+    seats_t1_suk = [
+        Seat("S_T03_01", "A1", SeatType.NORMALSEAT), Seat("S_T03_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T03_03", "A3", SeatType.NORMALSEAT), Seat("S_T03_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T03_05", "A5", SeatType.SOFA),       Seat("S_T03_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t1_suk: t1_suk.add_seat(s)
+    cpx2.add_theater(t1_suk)
 
-# Goods
-cineplex_siam.add_goods("Popcorn Butter", 200, 60, "Popcorn", flavor="Butter")
-cineplex_siam.add_goods("Popcorn Caramel", 150, 60, "Popcorn", flavor="Caramel")
-cineplex_siam.add_goods("Coke", 300, 50, "Drinks", flavor="Original")
-cineplex_siam.add_goods("Nachos", 100, 80, "Snack")
+    t2_suk = Theater("T04", TheaterType._4DX, "Theater B")
+    seats_t2_suk = [
+        Seat("S_T04_01", "A1", SeatType.NORMALSEAT), Seat("S_T04_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T04_03", "A3", SeatType.NORMALSEAT), Seat("S_T04_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T04_05", "A5", SeatType.SOFA),       Seat("S_T04_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t2_suk: t2_suk.add_seat(s)
+    cpx2.add_theater(t2_suk)
 
-system.add_cineplex(cineplex_siam)
+    now = datetime.now()
+    Showtime("ST01", m1, t1_siam, now + timedelta(hours=2))
+    Showtime("ST02", m3, t2_siam, now + timedelta(hours=5))
+    Showtime("ST03", m2, t1_suk,  now + timedelta(hours=2))
+    Showtime("ST04", m4, t2_suk,  now + timedelta(hours=5))
+    Showtime("ST05", m5, t2_siam, now + timedelta(hours=8))
 
-# ── Users ─────────────────────────────────────────────────────────────────
-system.register_member("J",   "01-01-1990", "M001", "2023-01-01")
-system.register_member("Ken", "01-01-2000", "U01",  "2023-01-01",
-                       email="ken@mail.com", phone_number="081")
+    cpx1.add_goods(Goods("G01", "Popcorn", 100, 50, GoodsType.POPCORN))
+    cpx2.add_goods(Goods("G02", "Cola", 50, 100, GoodsType.DRINKS))
+    cpx1.add_reward(Reward("R01", "Free Ticket", 1000))
 
-# ให้แต้ม M001 ไว้เทสระบบแลกของรางวัล
-test_user = system.search_user_by_id("M001")
-if test_user:
-    test_user.add_point(500)
+    system.book_ticket("U01", "ST01", ["S_T01_01"])
+    u1_bkg1 = u1.bookings[-1]
+    system.confirm_booking(u1_bkg1.id, "11111")
+    
+    # สั่งให้การจองเปลี่ยนเป็นดูหนังจบแล้ว และตั๋วถูกใช้งานแล้วผ่าน Method!
+    u1_bkg1.complete()
+    for t in u1_bkg1.tickets: t.use()
+
 
 # Reset tier to GUEST (pending /register via API)
 system.search_user_by_id("M001").change_type(MemberTier.GOLD)
 system.search_user_by_id("U01").change_type(MemberTier.GUEST)
 
-# ── Coupons ───────────────────────────────────────────────────────────────
-system.process_create_coupon("discount", "Discount 10", discount=10)
-system.process_create_coupon("discount", "Discount 20 (limited)", discount=20,
-                             last_date="2026-12-31 23:59")
+system.book_ticket("U02", "ST02", ["S_T02_03"])
 
-# ── Rewards ───────────────────────────────────────────────────────────────
-system.process_create_reward("Free Popcorn (M)", 10, 50)
-system.process_create_reward("Movie Ticket (Standard)", 300, 10)
 
-system.process_create_booking("U01","CPX01","ST01",["A1"])
-system.process_create_booking("M001","CPX01","ST01",["A2"])
-system.complete("BKG-00002")
+system.book_ticket("U01", "ST03", ["S_T03_02"])
+u1_bkg2 = u1.bookings[-1]
+system.confirm_booking(u1_bkg2.id, "11111")
+
+system.order_goods("U02", "Robinson", {"G01": 1}, "22222") 
+
+system.write_review("U01", u1_bkg1.id, 5, "Amazing Spider-Man!")
+
+setup_mock_data()
