@@ -1,5 +1,5 @@
 from datetime import datetime
-from enums import MemberTier, BookingStatus
+from enums import MemberTier, BookingStatus, TicketStatus
 from goods import Order
 
 class Coupon:
@@ -37,21 +37,32 @@ class PercentDiscountCoupon(Coupon):
         return max(total_price * (1 - self.__percent), 0)
 
 class Ticket:
-    def __init__(self, ticket_id: str, showtime_id: str, seat_number: str):
+    def __init__(self, ticket_id: str, booking_id: str, showtime_id: str, seat_number: str):
         self.__id = ticket_id
+        self.__booking_id = booking_id
         self.__showtime_id = showtime_id
         self.__seat_number = seat_number
+        self.__status = TicketStatus.UNUSED
 
     @property
     def id(self): return self.__id
     @property
+    def booking_id(self): return self.__booking_id
+    @property
     def showtime_id(self): return self.__showtime_id
     @property
     def seat_number(self): return self.__seat_number
+    @seat_number.setter
+    def seat_number(self, val: str): self.__seat_number = val
+    @property
+    def status(self): return self.__status
+    @status.setter
+    def status(self, val: TicketStatus): self.__status = val
 
 class Booking:
-    def __init__(self, booking_id: str, showtime_id: str, seat_ids: list, total: float, coupon_id: str = None):
+    def __init__(self, booking_id: str, user_id: str, showtime_id: str, seat_ids: list, total: float, coupon_id: str = None):
         self.__id = booking_id
+        self.__user_id = user_id
         self.__showtime_id = showtime_id
         self.__seat_ids = seat_ids
         self.__total = total
@@ -62,6 +73,8 @@ class Booking:
 
     @property
     def id(self): return self.__id
+    @property
+    def user_id(self): return self.__user_id
     @property
     def showtime_id(self): return self.__showtime_id
     @property

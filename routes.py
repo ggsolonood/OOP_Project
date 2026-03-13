@@ -102,3 +102,10 @@ def read_reviews(movie_id: str):
     success, res = system.read_reviews(movie_id)
     if not success: raise HTTPException(404, res)
     return res
+
+# --- API ใหม่สำหรับดูตั๋ว ---
+@api_router.get("/users/{user_id}/bookings/{booking_id}/tickets")
+def view_tickets(user_id: str, booking_id: str):
+    success, res = system.view_tickets(user_id, booking_id)
+    if not success: raise HTTPException(400, res)
+    return res

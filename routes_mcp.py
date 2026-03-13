@@ -16,7 +16,7 @@ def get_all_movies() -> list:
 
 @mcp.tool()
 def get_showtimes_by_movie(movie_id: str) -> dict:
-    """แสดงรอบฉาย (สาขา, โรง, ประเภทโรง, เวลา)"""
+    """แสดงรอบฉาย จะมีรหัสรอบฉาย (showtime_id) พร้อมสาขา โรงหนัง และเวลา"""
     success, res = system.get_showtimes_by_movie(movie_id)
     return {"success": success, "result": res}
 
@@ -34,13 +34,13 @@ def book_ticket(user_id: str, showtime_id: str, seat_ids: list[str], coupon_id: 
 
 @mcp.tool()
 def confirm_booking(booking_id: str, account_number: str) -> dict:
-    """ยืนยันการจองและตัดเงิน โดยใช้ เลขบัญชี 5 หลัก (account_number) พร้อมสร้างตั๋วที่นั่ง"""
+    """ยืนยันการจองและตัดเงิน โดยใช้ เลขบัญชี 5 หลัก พร้อมสร้างตั๋วที่นั่งแบบ 1 ตั๋วต่อ 1 ที่นั่ง"""
     success, res = system.confirm_booking(booking_id, account_number)
     return {"success": success, "result": res}
 
 @mcp.tool()
 def cancel_booking(booking_id: str) -> dict:
-    """ยกเลิกการจอง คืนเงิน"""
+    """ยกเลิกการจอง คืนเงิน (ยกเลิกได้ทั้งตอนจ่ายเงินแล้วและยังไม่จ่าย)"""
     success, res = system.cancel_booking(booking_id)
     return {"success": success, "result": res}
 
@@ -94,7 +94,7 @@ def collect_monthly_coupon(user_id: str, coupon_id: str) -> dict:
 
 @mcp.tool()
 def change_seats(user_id: str, booking_id: str, new_seat_ids: list[str]) -> dict:
-    """เปลี่ยนที่นั่ง แจ้งส่วนต่างการคืนเงิน"""
+    """เปลี่ยนที่นั่ง แจ้งส่วนต่างการคืนเงิน เปลี่ยนได้ทั้งตอนจ่ายเงินแล้วและยังไม่จ่าย และจะอัปเดตตั๋วให้อัตโนมัติ"""
     success, res = system.change_seats(user_id, booking_id, new_seat_ids)
     return {"success": success, "result": res}
 
@@ -108,4 +108,10 @@ def write_review(user_id: str, booking_id: str, star: int, comment: str) -> dict
 def read_reviews(movie_id: str) -> dict:
     """อ่านรีวิวใครเขียน กี่ดาว"""
     success, res = system.read_reviews(movie_id)
+    return {"success": success, "result": res}
+
+@mcp.tool()
+def view_tickets(user_id: str, booking_id: str) -> dict:
+    """ดูตั๋วหนังจากการจองที่สำเร็จแล้ว แสดงรายละเอียดสาขา โรง ที่นั่ง และสถานะตั๋ว"""
+    success, res = system.view_tickets(user_id, booking_id)
     return {"success": success, "result": res}

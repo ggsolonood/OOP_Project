@@ -3,7 +3,7 @@ from payment import Bank
 from goods import Order
 from theater import Cineplex, ShowtimeSeat, Review
 from user import User, Booking, Ticket, FixedDiscountCoupon
-from enums import MemberTier, BookingStatus, OrderStatus, SeatStatus
+from enums import MemberTier, BookingStatus, OrderStatus, SeatStatus, TicketStatus
 
 class JamorCineplex:
     def __init__(self, bank: Bank):
@@ -70,7 +70,7 @@ class JamorCineplex:
                 if o.id == order_id: return o, u
         return None, None
 
-    # ================= 17 USE CASES =================
+    # ================= USE CASES =================
 
     def get_all_movies(self):
         unique = {m.id: m for cpx in self.__cineplexes.values() for m in cpx.movies}
@@ -143,7 +143,7 @@ class JamorCineplex:
             st.showtime_seats[s_id] = ShowtimeSeat(seat.id, seat.number, seat.type)
         
         b_id = self.__gen_bkg_id()
-        bkg = Booking(b_id, showtime_id, seat_ids, final_price, coupon_id)
+        bkg = Booking(b_id, user_id, showtime_id, seat_ids, final_price, coupon_id)
         user.add_booking(bkg)
         
         return True, f"Booking ID: {b_id} | Location: {cpx.name}, {st.theater.name} | Movie: {st.movie.name} ({st.start_time.strftime('%H:%M')}) | Seats: {', '.join(seat_names)}"
@@ -159,12 +159,14 @@ class JamorCineplex:
             
             st, _ = self.__find_showtime(bkg.showtime_id)
             tickets_generated = []
+            
+            # 1 ตั๋วต่อ 1 ที่นั่ง
             for s_id in bkg.seat_ids:
                 if s_id in st.showtime_seats:
                     st.showtime_seats[s_id].status = SeatStatus.OCCUPIED
                     seat_num = st.showtime_seats[s_id].number
                     t_id = self.__gen_tkt_id()
-                    new_ticket = Ticket(t_id, st.id, seat_num)
+                    new_ticket = Ticket(t_id, booking_id, st.id, seat_num)
                     user.add_ticket(new_ticket)
                     tickets_generated.append(f"Ticket: {t_id} (Seat: {seat_num})")
                     
@@ -173,10 +175,15 @@ class JamorCineplex:
 
     def cancel_booking(self, booking_id: str):
         bkg, user = self.__find_booking(booking_id)
+        # สามารถยกเลิกได้ทั้งตอนที่ยังไม่จ่าย (PENDING) และจ่ายแล้ว (CONFIRMED)
         if not bkg or bkg.status in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]: return False, "Cannot cancel"
         
         if bkg.status == BookingStatus.CONFIRMED:
             self.__bank.refund(bkg.account_number, bkg.total)
+            # ยกเลิกตั๋วที่ถูกสร้างไปแล้ว
+            for t in user.tickets:
+                if t.booking_id == booking_id:
+                    t.status = TicketStatus.CANCELLED
         
         bkg.status = BookingStatus.CANCELLED
         
@@ -184,6 +191,7 @@ class JamorCineplex:
             coupon = next((c for c in user.coupons if c.id == bkg.coupon_id), None)
             if coupon: coupon.is_used = False
 
+        # คืนที่นั่งในระบบโรง
         st, _ = self.__find_showtime(bkg.showtime_id)
         for s_id in bkg.seat_ids:
             if s_id in st.showtime_seats:
@@ -221,7 +229,7 @@ class JamorCineplex:
         if self.__bank.pay(account_number, total):
             for g_id, qty in items_dict.items(): cpx_goods[g_id].decrease_stock(qty)
             o_id = self.__gen_ord_id()
-            user.add_order(Order(o_id, items_dict, total, account_number, coupon_id))
+            user.add_order(Order(o_id, user_id, items_dict, total, account_number, coupon_id))
             return True, f"Order {o_id} successful. Bought: {', '.join(items_bought)}. Total Paid: {total} THB."
             
         return False, "Payment failed. Check account number."
@@ -312,7 +320,10 @@ class JamorCineplex:
         bkg, user = self.__find_booking(booking_id)
         if not bkg or user.id != user_id: return False, "Booking not found"
         if user.tier == MemberTier.GUEST: return False, "Members only"
-        if bkg.status != BookingStatus.CONFIRMED: return False, "Must be confirmed"
+        
+        # เปลี่ยนที่นั่งได้ทั้งตอนยังไม่จ่ายและจ่ายแล้ว
+        if bkg.status not in [BookingStatus.PENDING, BookingStatus.CONFIRMED]: 
+            return False, "Cannot change seats for this booking"
         
         if len(new_seat_ids) != len(bkg.seat_ids): return False, "Seat count mismatch"
 
@@ -336,20 +347,37 @@ class JamorCineplex:
         if new_final > bkg.total: return False, "Cannot change to higher price"
         
         diff = bkg.total - new_final
-        if diff > 0: self.__bank.refund(bkg.account_number, diff)
-        
-        for s_id in bkg.seat_ids: 
-            if s_id in st.showtime_seats: del st.showtime_seats[s_id]
+
+        if bkg.status == BookingStatus.CONFIRMED:
+            if diff > 0: self.__bank.refund(bkg.account_number, diff)
             
-        for s_id in new_seat_ids: 
-            seat = theater_seats[s_id]
-            new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-            new_st_seat.status = SeatStatus.OCCUPIED
-            st.showtime_seats[s_id] = new_st_seat
+            # ดึงตั๋วเก่ามาเพื่ออัปเดตเบอร์ที่นั่ง
+            booking_tickets = [t for t in user.tickets if t.booking_id == booking_id and t.status != TicketStatus.CANCELLED]
+            
+            for s_id in bkg.seat_ids: 
+                if s_id in st.showtime_seats: del st.showtime_seats[s_id]
+                
+            for i, s_id in enumerate(new_seat_ids): 
+                seat = theater_seats[s_id]
+                new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
+                new_st_seat.status = SeatStatus.OCCUPIED
+                st.showtime_seats[s_id] = new_st_seat
+                # อัปเดตที่นั่งในตั๋วให้เป็นปัจจุบัน
+                if i < len(booking_tickets):
+                    booking_tickets[i].seat_number = seat.number
+
+        elif bkg.status == BookingStatus.PENDING:
+            for s_id in bkg.seat_ids: 
+                if s_id in st.showtime_seats: del st.showtime_seats[s_id]
+            for s_id in new_seat_ids: 
+                seat = theater_seats[s_id]
+                new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
+                new_st_seat.status = SeatStatus.BOOKED 
+                st.showtime_seats[s_id] = new_st_seat
 
         bkg.seat_ids = new_seat_ids 
         bkg.total = new_final
-        return True, f"Changed seats in booking {booking_id} successfully. Refund: {diff}"
+        return True, f"Changed seats successfully. Refund: {diff if bkg.status == BookingStatus.CONFIRMED else 0.0}"
 
     def write_review(self, user_id: str, booking_id: str, star: int, comment: str):
         bkg, user = self.__find_booking(booking_id)
@@ -365,3 +393,26 @@ class JamorCineplex:
         m = self.__find_movie(movie_id)
         if not m: return False, "Movie not found"
         return True, [{"star": r.star, "comment": r.comment, "reviewer": r.user_name} for r in m.reviews]
+
+    # --- USE CASE ใหม่: ดูตั๋วหนัง ---
+    def view_tickets(self, user_id: str, booking_id: str):
+        bkg, user = self.__find_booking(booking_id)
+        if not bkg or user.id != user_id: return False, "Booking not found"
+        if bkg.status not in [BookingStatus.CONFIRMED, BookingStatus.COMPLETED]:
+            return False, "Tickets have not been issued or booking was cancelled."
+        
+        st, cpx = self.__find_showtime(bkg.showtime_id)
+        
+        tickets_info = []
+        for t in user.tickets:
+            if t.booking_id == booking_id:
+                tickets_info.append({
+                    "ticket_id": t.id,
+                    "movie": st.movie.name,
+                    "cineplex": cpx.name,
+                    "theater": st.theater.name,
+                    "showtime": st.start_time.strftime("%Y-%m-%d %H:%M"),
+                    "seat": t.seat_number,
+                    "status": t.status.value
+                })
+        return True, tickets_info

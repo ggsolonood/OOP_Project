@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from payment import Bank
-from enums import MemberTier, TheaterType, SeatType, GoodsType, Genre, BookingStatus
+from enums import MemberTier, TheaterType, SeatType, GoodsType, Genre, BookingStatus, TicketStatus
 from theater import Movie, Theater, Seat, Showtime, Cineplex
 from user import User, FixedDiscountCoupon
 from cineplex import JamorCineplex
@@ -65,6 +65,8 @@ def setup_mock_data():
     u1_bkg1 = u1.bookings[-1]
     system.confirm_booking(u1_bkg1.id, "11111")
     u1_bkg1.status = BookingStatus.COMPLETED 
+    for t in u1.tickets:
+        if t.booking_id == u1_bkg1.id: t.status = TicketStatus.USED
 
     system.book_ticket("U02", "ST02", ["S_T02_03"])
 

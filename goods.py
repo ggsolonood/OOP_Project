@@ -23,8 +23,9 @@ class Goods:
     def increase_stock(self, amount: int): self.__stock += amount
 
 class Order:
-    def __init__(self, order_id: str, items: dict, total: float, account_number: str, coupon_id: str = None):
+    def __init__(self, order_id: str, user_id: str, items: dict, total: float, account_number: str, coupon_id: str = None):
         self.__id = order_id
+        self.__user_id = user_id
         self.__items = items
         self.__total = total
         self.__account_number = account_number
@@ -33,6 +34,8 @@ class Order:
 
     @property
     def id(self): return self.__id
+    @property
+    def user_id(self): return self.__user_id
     @property
     def items(self): return self.__items
     @property

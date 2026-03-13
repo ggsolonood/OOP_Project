@@ -25,6 +25,11 @@ class BookingStatus(Enum):
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
 
+class TicketStatus(Enum):
+    UNUSED = "Unused"
+    USED = "Used"
+    CANCELLED = "Cancelled"
+
 class GoodsType(Enum):
     POPCORN = "Popcorn"
     DRINKS = "Drinks"
