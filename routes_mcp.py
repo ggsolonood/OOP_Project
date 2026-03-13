@@ -28,7 +28,7 @@ def get_available_seats(showtime_id: str) -> dict:
 
 @mcp.tool()
 def book_ticket(user_id: str, showtime_id: str, seat_ids: list[str], coupon_id: str = None) -> dict:
-    """จองตั๋ว แสดงผลสถานที่และที่นั่งที่จอง และบอกชื่อผู้จอง"""
+    """จองตั๋ว แสดงผลสถานที่และที่นั่งที่จอง และบอกไอดีผู้จอง"""
     success, res = system.book_ticket(user_id, showtime_id, seat_ids, coupon_id)
     return {"success": success, "result": res}
 
@@ -52,7 +52,7 @@ def get_goods_by_cineplex(cineplex_name: str) -> dict:
 
 @mcp.tool()
 def order_goods(user_id: str, cineplex_name: str, items_dict: dict, account_number: str, coupon_id: str = None) -> dict:
-    """สั่งซื้อขนม/น้ำ โดยใช้ชื่อสาขาและเลขบัญชีธนาคาร 5 หลัก และบอกชื่อคนสั่งซื้อ"""
+    """สั่งซื้อขนม/น้ำ โดยใช้ชื่อสาขาและเลขบัญชีธนาคาร 5 หลัก และบอกไอดีคนสั่งซื้อ"""
     success, res = system.order_goods(user_id, cineplex_name, items_dict, account_number, coupon_id)
     return {"success": success, "result": res}
 

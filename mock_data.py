@@ -37,21 +37,45 @@ def setup_mock_data():
     cpx1.add_movie(m1); cpx1.add_movie(m2); cpx1.add_movie(m3); cpx1.add_movie(m5)
     cpx2.add_movie(m1); cpx2.add_movie(m2); cpx2.add_movie(m4); cpx2.add_movie(m5)
 
-    def build_theater_for_cpx(t_id, cpx, name, t_type=TheaterType.STANDARD):
-        t = Theater(t_id, t_type, name)
-        for i in range(1, 7):
-            s_type = SeatType.SOFA if i > 4 else SeatType.NORMALSEAT
-            t.add_seat(Seat(f"S_{t_id}_{i:02d}", f"A{i}", s_type))
-        cpx.add_theater(t)
-        return t
+    # สร้าง Theater แล้วดึง Object เก้าอี้มา Add ทีละตัว (ตรงตามหลัก OOP เป๊ะๆ)
+    t1_siam = Theater("T01", TheaterType.STANDARD, "Theater 1")
+    seats_t1_siam = [
+        Seat("S_T01_01", "A1", SeatType.NORMALSEAT), Seat("S_T01_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T01_03", "A3", SeatType.NORMALSEAT), Seat("S_T01_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T01_05", "A5", SeatType.SOFA),       Seat("S_T01_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t1_siam: t1_siam.add_seat(s)
+    cpx1.add_theater(t1_siam)
 
-    t1_siam = build_theater_for_cpx("T01", cpx1, "Theater 1", TheaterType.STANDARD)
-    t2_siam = build_theater_for_cpx("T02", cpx1, "Theater 2", TheaterType.IMAX)
-    t1_suk  = build_theater_for_cpx("T03", cpx2, "Theater A", TheaterType.STANDARD)
-    t2_suk  = build_theater_for_cpx("T04", cpx2, "Theater B", TheaterType._4DX)
+    t2_siam = Theater("T02", TheaterType.IMAX, "Theater 2")
+    seats_t2_siam = [
+        Seat("S_T02_01", "A1", SeatType.NORMALSEAT), Seat("S_T02_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T02_03", "A3", SeatType.NORMALSEAT), Seat("S_T02_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T02_05", "A5", SeatType.SOFA),       Seat("S_T02_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t2_siam: t2_siam.add_seat(s)
+    cpx1.add_theater(t2_siam)
+
+    t1_suk = Theater("T03", TheaterType.STANDARD, "Theater A")
+    seats_t1_suk = [
+        Seat("S_T03_01", "A1", SeatType.NORMALSEAT), Seat("S_T03_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T03_03", "A3", SeatType.NORMALSEAT), Seat("S_T03_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T03_05", "A5", SeatType.SOFA),       Seat("S_T03_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t1_suk: t1_suk.add_seat(s)
+    cpx2.add_theater(t1_suk)
+
+    t2_suk = Theater("T04", TheaterType._4DX, "Theater B")
+    seats_t2_suk = [
+        Seat("S_T04_01", "A1", SeatType.NORMALSEAT), Seat("S_T04_02", "A2", SeatType.NORMALSEAT),
+        Seat("S_T04_03", "A3", SeatType.NORMALSEAT), Seat("S_T04_04", "A4", SeatType.NORMALSEAT),
+        Seat("S_T04_05", "A5", SeatType.SOFA),       Seat("S_T04_06", "A6", SeatType.SOFA)
+    ]
+    for s in seats_t2_suk: t2_suk.add_seat(s)
+    cpx2.add_theater(t2_suk)
 
     now = datetime.now()
-    system._Showtime__st1 = Showtime("ST01", m1, t1_siam, now + timedelta(hours=2))
+    Showtime("ST01", m1, t1_siam, now + timedelta(hours=2))
     Showtime("ST02", m3, t2_siam, now + timedelta(hours=5))
     Showtime("ST03", m2, t1_suk,  now + timedelta(hours=2))
     Showtime("ST04", m4, t2_suk,  now + timedelta(hours=5))

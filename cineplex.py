@@ -42,7 +42,8 @@ class JamorCineplex:
         for m in cpx.movies:
             if movie_name.lower() in m.name.lower():
                 for st in m.showtimes:
-                    results.append({"showtime_id": st.id, "time": st.start_time.strftime("%Y-%m-%d %H:%M")})
+                    if st.theater in cpx.theaters:
+                        results.append({"showtime_id": st.id, "time": st.start_time.strftime("%Y-%m-%d %H:%M")})
         return True, results
 
     def __find_movie(self, movie_id: str):
@@ -80,17 +81,20 @@ class JamorCineplex:
         m = self.__find_movie(movie_id)
         if not m: return False, "Movie not found"
         results = []
-        for cpx in self.__cineplexes.values():
-            for st in m.showtimes:
-                if st.movie.id == movie_id:
-                    # โชว์ ID รอบฉายชัดเจน
-                    results.append({
-                        "showtime_id": st.id,
-                        "cineplex": cpx.name,
-                        "theater": st.theater.name,
-                        "theater_type": st.theater.type.value,
-                        "time": st.start_time.strftime("%Y-%m-%d %H:%M")
-                    })
+        # แก้บั๊กรอบฉายซ้ำ: เช็คว่า theater ของรอบฉายนั้นอยู่ใน cineplex ไหนจริงๆ
+        for st in m.showtimes:
+            cpx_name = "Unknown"
+            for cpx in self.__cineplexes.values():
+                if st.theater in cpx.theaters:
+                    cpx_name = cpx.name
+                    break
+            results.append({
+                "showtime_id": st.id,
+                "cineplex": cpx_name,
+                "theater": st.theater.name,
+                "theater_type": st.theater.type.value,
+                "time": st.start_time.strftime("%Y-%m-%d %H:%M")
+            })
         return True, results
 
     def get_available_seats(self, showtime_id: str):
@@ -147,8 +151,8 @@ class JamorCineplex:
         bkg = Booking(b_id, user_id, showtime_id, seat_ids, final_price, coupon_id)
         user.add_booking(bkg)
         
-        # แสดงผลว่าใครจอง
-        return True, f"Booking ID: {b_id} | User: {user.name} (ID: {user.id}) | Location: {cpx.name}, {st.theater.name} | Movie: {st.movie.name} ({st.start_time.strftime('%H:%M')}) | Seats: {', '.join(seat_names)}"
+        # แสดงผลเป็น User ID เท่านั้น
+        return True, f"Booking ID: {b_id} | User ID: {user.id} | Location: {cpx.name}, {st.theater.name} | Movie: {st.movie.name} ({st.start_time.strftime('%H:%M')}) | Seats: {', '.join(seat_names)}"
 
     def confirm_booking(self, booking_id: str, account_number: str):
         bkg, user = self.__find_booking(booking_id)
@@ -229,8 +233,8 @@ class JamorCineplex:
             o_id = self.__gen_ord_id()
             user.add_order(Order(o_id, user_id, items_dict, total, account_number, coupon_id))
             
-            # แสดงผลว่าใครเป็นคนสั่งซื้อ
-            return True, f"Order {o_id} successful | User: {user.name} (ID: {user.id}) | Bought: {', '.join(items_bought)}. Total Paid: {total} THB."
+            # แสดงผลเป็น User ID เท่านั้น
+            return True, f"Order {o_id} successful | User ID: {user.id} | Bought: {', '.join(items_bought)}. Total Paid: {total} THB."
             
         return False, "Payment failed. Check account number."
 
