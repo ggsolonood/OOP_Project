@@ -24,8 +24,8 @@ def setup_mock_data():
     u1.add_coupon(FixedDiscountCoupon("CP01", "Discount 50", 50.0))
     system.add_user(u1); system.add_user(u2); system.add_user(u3)
 
-    cpx1 = Cineplex("C01", "Siam Paragon")
-    cpx2 = Cineplex("C02", "Sukhumvit")
+    cpx1 = Cineplex("C01", "Robinson")
+    cpx2 = Cineplex("C02", "Mega")
     system.add_cineplex(cpx1); system.add_cineplex(cpx2)
 
     m1 = Movie("M01", "Spider-Man", 150.0, Genre.ACTION, "13+")
