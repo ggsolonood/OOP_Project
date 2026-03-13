@@ -68,7 +68,6 @@ class Theater:
     def add_seat(self, seat: Seat): self.__seats.append(seat)
 
 class Movie:
-    # age_rating เปลี่ยนเป็น str แทน
     def __init__(self, movie_id: str, name: str, base_price: float, genre: Genre, age_rating: str):
         self.__id = movie_id
         self.__name = name

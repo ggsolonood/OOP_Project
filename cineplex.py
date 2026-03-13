@@ -74,7 +74,6 @@ class JamorCineplex:
 
     def get_all_movies(self):
         unique = {m.id: m for cpx in self.__cineplexes.values() for m in cpx.movies}
-        # m.age_rating ตอนนี้เป็น str แล้ว
         return [{"id": m.id, "name": m.name, "genre": m.genre.value, "age_rating": m.age_rating} for m in unique.values()]
 
     def get_showtimes_by_movie(self, movie_id: str):
@@ -149,13 +148,13 @@ class JamorCineplex:
         
         return True, f"Booking ID: {b_id} | Location: {cpx.name}, {st.theater.name} | Movie: {st.movie.name} ({st.start_time.strftime('%H:%M')}) | Seats: {', '.join(seat_names)}"
 
-    def confirm_booking(self, booking_id: str, account_id: str):
+    def confirm_booking(self, booking_id: str, account_number: str):
         bkg, user = self.__find_booking(booking_id)
         if not bkg or bkg.status != BookingStatus.PENDING: return False, "Invalid booking"
         
-        if self.__bank.pay(account_id, bkg.total):
+        if self.__bank.pay(account_number, bkg.total):
             bkg.status = BookingStatus.CONFIRMED
-            bkg.account_id = account_id
+            bkg.account_number = account_number
             user.add_points(int(bkg.total // 10))
             
             st, _ = self.__find_showtime(bkg.showtime_id)
@@ -170,14 +169,14 @@ class JamorCineplex:
                     tickets_generated.append(f"Ticket: {t_id} (Seat: {seat_num})")
                     
             return True, f"Payment successful. Tickets generated: {', '.join(tickets_generated)}"
-        return False, "Payment failed"
+        return False, "Payment failed. Check account number."
 
     def cancel_booking(self, booking_id: str):
         bkg, user = self.__find_booking(booking_id)
         if not bkg or bkg.status in [BookingStatus.CANCELLED, BookingStatus.COMPLETED]: return False, "Cannot cancel"
         
         if bkg.status == BookingStatus.CONFIRMED:
-            self.__bank.refund(bkg.account_id, bkg.total)
+            self.__bank.refund(bkg.account_number, bkg.total)
         
         bkg.status = BookingStatus.CANCELLED
         
@@ -192,17 +191,18 @@ class JamorCineplex:
                 
         return True, f"Booking {booking_id} has been cancelled and refunded successfully."
 
-    def get_goods_by_cineplex(self, cineplex_id: str):
-        if cineplex_id not in self.__cineplexes: return False, "Cineplex not found"
-        cpx = self.__cineplexes[cineplex_id]
+    def get_goods_by_cineplex(self, cineplex_name: str):
+        cpx = self.search_cineplex_by_name(cineplex_name)
+        if not cpx: return False, "Cineplex not found"
         return True, [{"id": g.id, "name": g.name, "type": g.type.value, "price": g.price, "stock": g.stock} for g in cpx.goods]
 
-    def order_goods(self, user_id: str, cineplex_id: str, items_dict: dict, account_id: str, coupon_id: str = None):
+    def order_goods(self, user_id: str, cineplex_name: str, items_dict: dict, account_number: str, coupon_id: str = None):
         if user_id not in self.__users: return False, "User not found"
-        if cineplex_id not in self.__cineplexes: return False, "Cineplex not found"
+        
+        cpx = self.search_cineplex_by_name(cineplex_name)
+        if not cpx: return False, "Cineplex not found"
         
         user = self.__users[user_id]
-        cpx = self.__cineplexes[cineplex_id]
         cpx_goods = {g.id: g for g in cpx.goods}
         
         total = 0
@@ -218,23 +218,23 @@ class JamorCineplex:
             total = coupon.calculate_discount(total)
             coupon.is_used = True
 
-        if self.__bank.pay(account_id, total):
+        if self.__bank.pay(account_number, total):
             for g_id, qty in items_dict.items(): cpx_goods[g_id].decrease_stock(qty)
             o_id = self.__gen_ord_id()
-            user.add_order(Order(o_id, items_dict, total, account_id, coupon_id))
+            user.add_order(Order(o_id, items_dict, total, account_number, coupon_id))
             return True, f"Order {o_id} successful. Bought: {', '.join(items_bought)}. Total Paid: {total} THB."
             
-        return False, "Payment failed"
+        return False, "Payment failed. Check account number."
 
-    def cancel_order(self, order_id: str, cineplex_id: str):
+    def cancel_order(self, order_id: str, cineplex_name: str):
         order, user = self.__find_order(order_id)
         if not order or order.status == OrderStatus.CANCELLED: return False, "Invalid order"
         
-        cpx = self.__cineplexes.get(cineplex_id)
+        cpx = self.search_cineplex_by_name(cineplex_name)
         if not cpx: return False, "Cineplex not found"
         cpx_goods = {g.id: g for g in cpx.goods}
 
-        self.__bank.refund(order.account_id, order.total)
+        self.__bank.refund(order.account_number, order.total)
         for g_id, qty in order.items.items():
             if g_id in cpx_goods: cpx_goods[g_id].increase_stock(qty)
                 
@@ -245,14 +245,14 @@ class JamorCineplex:
         order.status = OrderStatus.CANCELLED
         return True, f"Order {order_id} cancelled and refunded successfully."
 
-    def upgrade_member(self, user_id: str, account_id: str):
+    def upgrade_member(self, user_id: str, account_number: str):
         if user_id not in self.__users: return False, "User not found"
         user = self.__users[user_id]
         
-        if self.__bank.pay(account_id, 150.0):
+        if self.__bank.pay(account_number, 150.0):
             user.upgrade_tier()
             return True, f"Upgrade successful. You are now a {user.tier.value} member."
-        return False, "Payment failed"
+        return False, "Payment failed. Check account number."
 
     def view_history(self, user_id: str):
         if user_id not in self.__users: return False, "User not found"
@@ -336,7 +336,7 @@ class JamorCineplex:
         if new_final > bkg.total: return False, "Cannot change to higher price"
         
         diff = bkg.total - new_final
-        if diff > 0: self.__bank.refund(bkg.account_id, diff)
+        if diff > 0: self.__bank.refund(bkg.account_number, diff)
         
         for s_id in bkg.seat_ids: 
             if s_id in st.showtime_seats: del st.showtime_seats[s_id]

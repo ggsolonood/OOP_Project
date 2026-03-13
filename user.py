@@ -56,7 +56,7 @@ class Booking:
         self.__seat_ids = seat_ids
         self.__total = total
         self.__coupon_id = coupon_id
-        self.__account_id = None
+        self.__account_number = None
         self.__status = BookingStatus.PENDING
         self.__created_at = datetime.now()
 
@@ -73,9 +73,9 @@ class Booking:
     @total.setter
     def total(self, val: float): self.__total = val
     @property
-    def account_id(self): return self.__account_id
-    @account_id.setter
-    def account_id(self, val: str): self.__account_id = val
+    def account_number(self): return self.__account_number
+    @account_number.setter
+    def account_number(self, val: str): self.__account_number = val
     @property
     def coupon_id(self): return self.__coupon_id
     @property

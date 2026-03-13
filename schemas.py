@@ -8,17 +8,17 @@ class BookTicketReq(BaseModel):
     coupon_id: Optional[str] = None
 
 class ConfirmBookingReq(BaseModel):
-    account_id: str
+    account_number: str
 
 class OrderGoodsReq(BaseModel):
     user_id: str
-    cineplex_id: str
+    cineplex_name: str
     items: Dict[str, int]
-    account_id: str
+    account_number: str
     coupon_id: Optional[str] = None
 
 class UpgradeMemberReq(BaseModel):
-    account_id: str
+    account_number: str
 
 class ChangeSeatsReq(BaseModel):
     user_id: str

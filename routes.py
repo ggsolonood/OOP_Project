@@ -27,7 +27,7 @@ def book_ticket(req: BookTicketReq):
 
 @api_router.post("/bookings/{booking_id}/confirm")
 def confirm_booking(booking_id: str, req: ConfirmBookingReq):
-    success, res = system.confirm_booking(booking_id, req.account_id)
+    success, res = system.confirm_booking(booking_id, req.account_number)
     if not success: raise HTTPException(400, res)
     return {"message": res}
 
@@ -37,27 +37,27 @@ def cancel_booking(booking_id: str):
     if not success: raise HTTPException(400, res)
     return {"message": res}
 
-@api_router.get("/cineplexes/{cineplex_id}/goods")
-def get_goods(cineplex_id: str):
-    success, res = system.get_goods_by_cineplex(cineplex_id)
+@api_router.get("/cineplexes/{cineplex_name}/goods")
+def get_goods(cineplex_name: str):
+    success, res = system.get_goods_by_cineplex(cineplex_name)
     if not success: raise HTTPException(404, res)
     return res
 
 @api_router.post("/store/order")
 def order_goods(req: OrderGoodsReq):
-    success, res = system.order_goods(req.user_id, req.cineplex_id, req.items, req.account_id, req.coupon_id)
+    success, res = system.order_goods(req.user_id, req.cineplex_name, req.items, req.account_number, req.coupon_id)
     if not success: raise HTTPException(400, res)
     return {"message": res}
 
 @api_router.delete("/store/order/{order_id}")
-def cancel_order(order_id: str, cineplex_id: str):
-    success, res = system.cancel_order(order_id, cineplex_id)
+def cancel_order(order_id: str, cineplex_name: str):
+    success, res = system.cancel_order(order_id, cineplex_name)
     if not success: raise HTTPException(400, res)
     return {"message": res}
 
 @api_router.post("/users/{user_id}/upgrade")
 def upgrade_member(user_id: str, req: UpgradeMemberReq):
-    success, res = system.upgrade_member(user_id, req.account_id)
+    success, res = system.upgrade_member(user_id, req.account_number)
     if not success: raise HTTPException(400, res)
     return {"message": res}
 
