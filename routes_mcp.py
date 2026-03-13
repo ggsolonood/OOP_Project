@@ -3,11 +3,6 @@ from mock_data import system
 
 mcp = FastMCP("JamorCineplex")
 
-@mcp.tool()
-def search_showtime_details(movie_name: str, cineplex_name: str) -> dict:
-    """ช่วย AI ค้นหา showtime_id ของหนังที่ฉายในสาขานั้นๆ จากชื่อ"""
-    success, res = system.search_showtime_details(movie_name, cineplex_name)
-    return {"success": success, "result": res}
 
 @mcp.tool()
 def get_all_movies() -> list:

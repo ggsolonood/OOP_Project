@@ -24,34 +24,6 @@ class JamorCineplex:
     def add_cineplex(self, cpx: Cineplex): self.__cineplexes[cpx.id] = cpx
     def add_user(self, user: User): self.__users[user.id] = user
 
-    def search_movie_by_name(self, name: str):
-        for cpx in self.__cineplexes.values():
-            for m in cpx.movies:
-                if name.lower() in m.name.lower(): return m
-        return None
-
-    def search_cineplex_by_name(self, name: str):
-        for cpx in self.__cineplexes.values():
-            if name.lower() in cpx.name.lower(): return cpx
-        return None
-
-    def search_showtime_details(self, movie_name: str, cineplex_name: str):
-        cpx = self.search_cineplex_by_name(cineplex_name)
-        if not cpx: return False, "Cineplex not found"
-        results = []
-        for m in cpx.movies:
-            if movie_name.lower() in m.name.lower():
-                for st in m.showtimes:
-                    if st.theater in cpx.theaters:
-                        results.append({"showtime_id": st.id, "time": st.start_time.strftime("%Y-%m-%d %H:%M")})
-        return True, results
-
-    def __find_movie(self, movie_id: str):
-        for cpx in self.__cineplexes.values():
-            for m in cpx.movies:
-                if m.id == movie_id: return m
-        return None
-
     def __find_showtime(self, showtime_id: str):
         for cpx in self.__cineplexes.values():
             for m in cpx.movies:
