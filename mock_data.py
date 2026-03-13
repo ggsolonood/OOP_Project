@@ -92,20 +92,14 @@ def setup_mock_data():
     u1_bkg1.complete()
     for t in u1_bkg1.tickets: t.use()
 
+    system.book_ticket("U02", "ST02", ["S_T02_03"])
 
-# Reset tier to GUEST (pending /register via API)
-system.search_user_by_id("M001").change_type(MemberTier.GOLD)
-system.search_user_by_id("U01").change_type(MemberTier.GUEST)
+    system.book_ticket("U01", "ST03", ["S_T03_02"])
+    u1_bkg2 = u1.bookings[-1]
+    system.confirm_booking(u1_bkg2.id, "11111")
 
-system.book_ticket("U02", "ST02", ["S_T02_03"])
+    system.order_goods("U02", "Robinson", {"G01": 1}, "22222") 
 
-
-system.book_ticket("U01", "ST03", ["S_T03_02"])
-u1_bkg2 = u1.bookings[-1]
-system.confirm_booking(u1_bkg2.id, "11111")
-
-system.order_goods("U02", "Robinson", {"G01": 1}, "22222") 
-
-system.write_review("U01", u1_bkg1.id, 5, "Amazing Spider-Man!")
+    system.write_review("U01", u1_bkg1.id, 5, "Amazing Spider-Man!")
 
 setup_mock_data()
