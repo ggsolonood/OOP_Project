@@ -37,11 +37,12 @@ class PercentDiscountCoupon(Coupon):
         return max(total_price * (1 - self.__percent), 0)
 
 class Ticket:
-    def __init__(self, ticket_id: str, booking_id: str, showtime_id: str, seat_number: str):
+    # เปลี่ยนจากการรับ str seat_number มาเป็นรับ Object showtime_seat
+    def __init__(self, ticket_id: str, booking_id: str, showtime_id: str, showtime_seat):
         self.__id = ticket_id
         self.__booking_id = booking_id
         self.__showtime_id = showtime_id
-        self.__seat_number = seat_number
+        self.__showtime_seat = showtime_seat 
         self.__status = TicketStatus.UNUSED
 
     @property
@@ -50,15 +51,16 @@ class Ticket:
     def booking_id(self): return self.__booking_id
     @property
     def showtime_id(self): return self.__showtime_id
+    
+    # เปลี่ยน property ให้เป็น Object
     @property
-    def seat_number(self): return self.__seat_number
-    @seat_number.setter
-    def seat_number(self, val: str): self.__seat_number = val
+    def showtime_seat(self): return self.__showtime_seat
+    @showtime_seat.setter
+    def showtime_seat(self, val): self.__showtime_seat = val
     
     @property
     def status(self): return self.__status
     
-    # Method เปลี่ยนสถานะตั๋ว
     def use(self): self.__status = TicketStatus.USED
     def cancel(self): self.__status = TicketStatus.CANCELLED
 
@@ -73,7 +75,7 @@ class Booking:
         self.__account_number = None
         self.__status = BookingStatus.PENDING
         self.__created_at = datetime.now()
-        self.__tickets = [] # ย้ายมารวมที่นี่
+        self.__tickets = [] 
 
     @property
     def id(self): return self.__id
@@ -103,7 +105,6 @@ class Booking:
     @property
     def status(self): return self.__status
     
-    # Method เปลี่ยนสถานะการจอง
     def confirm(self, account_number: str): 
         self.__status = BookingStatus.CONFIRMED
         self.__account_number = account_number

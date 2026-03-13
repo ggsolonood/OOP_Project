@@ -150,7 +150,7 @@ class JamorCineplex:
         for s_id in seat_ids:
             seat = theater_seats[s_id]
             new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-            new_st_seat.book() # เรียกผ่าน Method
+            new_st_seat.book()
             st.showtime_seats[s_id] = new_st_seat
         
         b_id = self.__gen_bkg_id()
@@ -164,7 +164,7 @@ class JamorCineplex:
         if not bkg or bkg.status != BookingStatus.PENDING: return False, "Invalid booking"
         
         if self.__bank.pay(account_number, bkg.total):
-            bkg.confirm(account_number) # เปลี่ยนสถานะและบันทึกเลขบัญชีผ่าน Method
+            bkg.confirm(account_number) 
             user.add_points(int(bkg.total // 10))
             
             st, _ = self.__find_showtime(bkg.showtime_id)
@@ -172,12 +172,16 @@ class JamorCineplex:
             
             for s_id in bkg.seat_ids:
                 if s_id in st.showtime_seats:
-                    st.showtime_seats[s_id].occupy() # เรียกผ่าน Method
-                    seat_num = st.showtime_seats[s_id].number
+                    st.showtime_seats[s_id].occupy() 
                     t_id = self.__gen_tkt_id()
-                    new_ticket = Ticket(t_id, booking_id, st.id, seat_num)
-                    bkg.add_ticket(new_ticket) # แอดตั๋วเข้า Booking
-                    tickets_generated.append(f"Ticket: {t_id} (Seat: {seat_num})")
+                    
+                    # จุดแก้ 1: โยน Object st.showtime_seats[s_id] เข้าไปแทนที่จะโยนแค่ String เบอร์ที่นั่ง
+                    seat_obj = st.showtime_seats[s_id]
+                    new_ticket = Ticket(t_id, booking_id, st.id, seat_obj) 
+                    bkg.add_ticket(new_ticket) 
+                    
+                    # ตอน Print ออกมา ก็ยังให้มันโชว์เบอร์ที่นั่งเหมือนเดิม โดยดึงจาก .number ของ Object
+                    tickets_generated.append(f"Ticket: {t_id} (Seat: {seat_obj.number})")
                     
             return True, f"Payment successful. Tickets generated: {', '.join(tickets_generated)}"
         return False, "Payment failed. Check account number."
@@ -189,9 +193,9 @@ class JamorCineplex:
         if bkg.status == BookingStatus.CONFIRMED:
             self.__bank.refund(bkg.account_number, bkg.total)
             for t in bkg.tickets:
-                t.cancel() # เรียกผ่าน Method ยกเลิกตั๋ว
+                t.cancel()
         
-        bkg.cancel() # เรียกผ่าน Method ยกเลิกจอง
+        bkg.cancel() 
         
         if bkg.coupon_id:
             coupon = next((c for c in user.coupons if c.id == bkg.coupon_id), None)
@@ -255,7 +259,7 @@ class JamorCineplex:
             coupon = next((c for c in user.coupons if c.id == order.coupon_id), None)
             if coupon: coupon.is_used = False
 
-        order.cancel() # เรียกผ่าน Method
+        order.cancel()
         return True, f"Order {order_id} cancelled and refunded successfully."
 
     def upgrade_member(self, user_id: str, account_number: str):
@@ -363,10 +367,12 @@ class JamorCineplex:
             for i, s_id in enumerate(new_seat_ids): 
                 seat = theater_seats[s_id]
                 new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-                new_st_seat.occupy() # เรียกผ่าน Method
+                new_st_seat.occupy() 
                 st.showtime_seats[s_id] = new_st_seat
+                
+                # จุดแก้ 2: อัปเดต Object ที่นั่งใหม่เข้าไปในตั๋วที่มีอยู่แล้ว
                 if i < len(booking_tickets):
-                    booking_tickets[i].seat_number = seat.number
+                    booking_tickets[i].showtime_seat = new_st_seat 
 
         elif bkg.status == BookingStatus.PENDING:
             for s_id in bkg.seat_ids: 
@@ -374,7 +380,7 @@ class JamorCineplex:
             for s_id in new_seat_ids: 
                 seat = theater_seats[s_id]
                 new_st_seat = ShowtimeSeat(seat.id, seat.number, seat.type)
-                new_st_seat.book() # เรียกผ่าน Method
+                new_st_seat.book() 
                 st.showtime_seats[s_id] = new_st_seat
 
         bkg.seat_ids = new_seat_ids 
@@ -405,14 +411,16 @@ class JamorCineplex:
         st, cpx = self.__find_showtime(bkg.showtime_id)
         
         tickets_info = []
-        for t in bkg.tickets: # ดึงจาก Booking แทน
+        for t in bkg.tickets: 
             tickets_info.append({
                 "ticket_id": t.id,
                 "movie": st.movie.name,
                 "cineplex": cpx.name,
                 "theater": st.theater.name,
                 "showtime": st.start_time.strftime("%Y-%m-%d %H:%M"),
-                "seat": t.seat_number,
+                
+                # จุดแก้ 3: ดึง string เลขที่นั่ง .number ออกมาจาก Object เพื่อแสดงผลหน้าบ้านให้เหมือนเดิม
+                "seat": t.showtime_seat.number, 
                 "status": t.status.value
             })
         return True, tickets_info
